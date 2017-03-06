@@ -1,0 +1,34 @@
+html { position: relative; margin: 0; padding: 0; }
+body { margin: 0; padding: 0; text-align: left; }
+#imPage { position: relative; width: 100%; }
+#imHeaderBg { position: absolute; left: 0; top: 0; width: 100%; }
+#imMnMnGraphics { position: absolute; top: 0; bottom: 0; z-index: 9; }
+#imContentContainer { position: relative; }
+#imContent { position: relative; }
+#imContentGraphics { position: absolute; top: 0; bottom: 0; }
+#imFooPad { float: left; margin: 0 auto; }
+#imBtMnContainer { clear: both; }
+.imPageRow { position: relative; clear: both; overflow: hidden; zoom: 1; float: left; width: 100%; }
+.imHGroup:after, .imUGroup:after, .imVGroup:after { content: ""; display: table; clear: both; }
+#imFooterBg { position: absolute; left: 0; bottom: 0; width: 100%; }
+#imFooter { position: relative; }
+html { min-width: 1169px; }
+html { background-image: none; background-color: transparent; }
+#imPage { padding-top: 70px; margin-top: 0px; margin-bottom: 0px; min-width: 1169px; }
+#imHeaderBg { height: 200px; background-image: url('flowers-1476517_1920.jpg'); background-position: center center; background-repeat: repeat; background-attachment: scroll; background-color: transparent; }
+#imHeader { position: relative; margin-bottom: 0; margin-left: auto; margin-right: auto; height: 130px; background-image: none; background-color: transparent; }
+#imHeaderObjects { position: relative; height: 130px; }
+#imMnMnContainer { position: absolute; top: 0; left: 0; right: 0; margin-left: auto; margin-right: auto; }
+#imMnMn { position: relative; height: 65px; padding: 0px 10px 5px 10px; background-image: none; background-color: transparent; }
+#imMnMn > ul { text-align: center; }
+#imMnMn li { display: inline; }
+#imMnMnGraphics { display: none; }
+#imContent { min-height: 380px; padding: 50px 0 5px 0; }
+#imContentGraphics { left: 0; right: 0; margin-left: auto; margin-right: auto; min-height: 380px;  background-image: url('content.png'); background-position: left top; background-repeat: repeat-y; background-attachment: scroll; background-color: transparent; }
+#imFooterBg { height: 100px; background-image: none; background-color: #D55C9F; }
+#imFooter { margin-left: auto; margin-right: auto; height: 100px; background-image: none; background-color: transparent; }
+#imFooterObjects { position: relative; height: 100px; }
+#imFooPad { height: 380px; }
+#imHeader, #imMnMnContainer, #imFooter { width: 1169px; }
+#imMnMn { width: 1149px; }
+#imContentGraphics { width: 1169px; }
