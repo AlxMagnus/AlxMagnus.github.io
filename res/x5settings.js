@@ -4,8 +4,6 @@
 		p = s.currentPath,
 		b = x.boot;
 
-	s.siteId = 'F165D489D80ABAAA1ED5EEA75F43DEF0';
-	s.version = '13-0-5-27';
 	b.push(function () {
 		x.setupDateTime();
 		x.imAccess.showLogout();
@@ -15,28 +13,29 @@
 	});
 	s.menu = {
 		verticalScroll: false,
+		orientation: 'horizontal'
 	};
 	b.push(function () {
 		x.menu({
 			target: '#imMnMn',
-			verticalScroll: false,
 			showCurrent: false,
-			showLogoOnScroll: true,
-			menuHeight: 64,
+			verticalScroll: false,
+			orientation: 'horizontal',
+			menuHeight: 22,
 			menuWidth: 120,
 			submenuHeight: 22,
 			submenuWidth: 160,
 			opacity: 0.8,
-			fullWidthScroll: false,
 			type: 'singleColumn',
+			alignment: 'left',
 			effect: 'fade'
 		});
 	});
-	b.push(function () { x.utils.imPreloadImages([p + 'menu/hor_main.png',p + 'menu/hor_main_h.png',p + 'menu/hor_main_c.png', p + 'res/imLoad.gif', p + 'res/imClose.png']); });
+	b.push(function () { x.utils.imPreloadImages([p + 'menu/index_h.png',p + 'menu/---------1_h.png',p + 'menu/---------2_h.png',p + 'menu/---------3_h.png', p + 'res/imLoad.gif', p + 'res/imClose.png']); });
 
 	// ShowBox
 	$.extend(s.imShowBox, {
-		"effect": "custom", "customEffect": "generic animated fadeIn",
+		'effect' : 'fade',
 		'shadow' : '',
 		'background' : '#000000',
 		'borderWidth' : {
@@ -60,7 +59,7 @@
 
 	// PopUp
 	$.extend(s.imPopUp, {
-		'effect' : 'websitex5.bl.templates.showboxanimation',
+		'effect' : 'fade',
 		'width' : 500,
 		'shadow' : '',
 		'background' : '#000000',
@@ -78,12 +77,6 @@
 		'effect' : 'none',
 		'showTail' : true
 	});
-
-
-	// BreakPoints
-	s.breakPoints.push({ "hash": "0fcea89e902c6a0e9c4ca91aaa05d4f5", "name": "Desktop", "start": "max", "end": 0, "fluid": false });
-
-	b.push(function() { x.cookielaw.showBanner({id: "cookie-law-message", text: "Этот сайт использует файлы Cookie. Просим ознакомиться с правилами обработки данных.", priority: 1, position: 'bottom'}); });
 
 	s.loaded = true;
 })( _jq, x5engine );

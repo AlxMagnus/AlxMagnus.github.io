@@ -1,41 +1,18 @@
 <?php
-	$l10n['admin_analytics_count'] = 'Количество';
-	$l10n['admin_analytics_langs'] = 'Языки';
-	$l10n['admin_analytics_language'] = 'Языки';
-	$l10n['admin_analytics_mostvisitedpages'] = 'Наиболее посещаемые страницы';
-	$l10n['admin_analytics_pageviews'] = 'Количество просмотров страницы';
-	$l10n['admin_analytics_title'] = 'Analytics';
-	$l10n['admin_analytics_uniquepageviews'] = 'Количество уникальных просмотров страницы';
-	$l10n['admin_analytics_uniqueviews'] = 'Количество уникальных просмотров';
-	$l10n['admin_analytics_views'] = 'Просмотры';
-	$l10n['admin_analytics_visitorscount'] = 'Количество посетителей';
 	$l10n['admin_category_select'] = 'Выберите категорию:';
 	$l10n['admin_comment_abuse'] = 'Это сообщение было отмечено как нецензурное!';
 	$l10n['admin_download'] = 'Загрузить';
 	$l10n['admin_guestbook'] = 'Гостевая книга';
-	$l10n['admin_guestbook_select'] = 'Выберите гостевую книгу:';
-	$l10n['admin_lastdays'] = 'За последнюю неделю';
+	$l10n['admin_guestbook_select'] = 'Выберите гостевую книгу';
 	$l10n['admin_logout'] = 'Выйти';
-	$l10n['admin_manager_ads_01'] = 'Управляйте Вашими сайтами с мобильных устройств с помощью приложения для WebSite X5 Professional с еще более мощным функционалом.';
-	$l10n['admin_manager_ads_02'] = 'Введите имя пользователя или отсканируйте QR-код с помощью Вашего устройства.';
-	$l10n['admin_manager_ads_03'] = 'Вы можете добавить неограниченное количество сайтов и управлять ими с помощью всего лишь нескольких нажатий.';
-	$l10n['admin_manager_ads_04'] = 'Установите push-уведомления, чтобы не пропускать важную информацию с Ваших сайтов.';
-	$l10n['admin_manager_ads_05'] = 'Следите за заказами, проверяйте наличие товаров на складе, отвечайте на комментарии пользователей. У Вас всё под рукой.';
-	$l10n['admin_manager_download'] = 'Установите Приложение, доступное в основных интернет-магазинах, или отсканируйте QR-код:';
-	$l10n['admin_manager_introduction'] = 'Получите доступ к Панели Управления всех Ваших сайтов со смартфона или планшета с помощью приложения WebSite X5 Manager.';
-	$l10n['admin_manager_name'] = 'WebSite X5 Manager';
-	$l10n['admin_manager_site_connect_info'] = 'Отройте WebSite X5 Manager и отсканируйте этот QR-код, чтобы добавить ваш сайт "[WEBSITENAME]".';
-	$l10n['admin_manager_subtitle'] = 'Приложение WebSite X5 для управления сайтами даже с мобильного устройства.';
 	$l10n['admin_post_select'] = 'Выберите запись:';
 	$l10n['admin_test_database'] = 'Настройки MySQL';
 	$l10n['admin_test_database_suggestion'] = 'Попросите своего хостинг-провайдера проверить настройки вашей базы данных';
 	$l10n['admin_test_email'] = 'Проверьте настройки e-mail';
 	$l10n['admin_test_folder'] = 'Путь к публичной папке на сервере';
 	$l10n['admin_test_folder_suggestion'] = 'Уточните у хостинг-провайдера путь к папке с доступом на чтение/запись. Эта папка должна иметь атрибуты доступа 777';
-	$l10n['admin_test_notpassed'] = 'Не превышены';
 	$l10n['admin_test_session'] = 'Поддержка сессии';
 	$l10n['admin_test_session_suggestion'] = 'Обратитесь к своему хостинг-провайдеру для получения дополнительной информации о настройках сессии';
-	$l10n['admin_test_title'] = 'Тестирование веб-сайта';
 	$l10n['admin_test_version'] = 'Версия PHP';
 	$l10n['admin_test_version_suggestion'] = 'Попросите своего хостинг-провайдера обновить PHP';
 	$l10n['blog_abuse'] = 'Пометить как нецензурное выражение';
@@ -76,17 +53,12 @@
 	$l10n['blog_unapprove'] = 'Отклонить';
 	$l10n['blog_unapprove_link'] = 'Чтобы отклонить комментарий, перейдите по этой ссылке';
 	$l10n['blog_unapprove_question'] = 'Хотите отклонить этот комментарий?';
-	$l10n['blog_waiting_approval'] = 'В ожидании модерации';
 	$l10n['blog_website'] = 'Веб-сайт:';
-	$l10n['browser_compat_1'] = 'Ваш браузер не поддерживает функции, требуемые для визуализации этого Сайта.';
-	$l10n['browser_compat_1_warning'] = 'Возможно, Ваш браузер не поддерживает функции, требуемые для визуализации этого Сайта.';
-	$l10n['browser_compat_2'] = '[1]Обновите Ваш браузер[/1] или [2]продолжите процедуру [/2].';
-	$l10n['browser_compat_link'] = 'http://outdatedbrowser.com/';
 	$l10n['cart_add'] = 'Добавить';
 	$l10n['cart_agree'] = 'Я согласен с условиями';
 	$l10n['cart_apply'] = 'Согласиться';
 	$l10n['cart_brstates_codes'] = array('AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PR','PB','PA','PE','PI','RN','RS','RJ','RO','RR','SC','SE','SP','TO');
-	$l10n['cart_brstates_names'] = array('Акко','Алагос','Амапа','Амазонас','Баия','Сеара','Федеральный округ','Эспириту-Санту','Гояс','Мараньян','Мату-Гросу','Маут-Горсу-ду-Сул','Минас-Жейрас','Парана','Параиба','Пара','Парнамбуку','Пиауи','Риу-Гранди-ду-Норти','Риу-Гранди-ду Сул','Риод-де-Жанейро','Родония','Рорайма','Санта-Катарина','Сержипи','Сан-Паулу','Токантис');
+	$l10n['cart_brstates_names'] = array('Acre','Alagoas','Amapá','Amazonas','Bahia','Ceará','Distrito Federal','Espírito Santo','Goiás','Maranhão','Mato Grasso','Mato Grosso do Sul','Minas Gerais','Paraná','Paraíba','Pará','Pernambuco','Piauí','Rio Grande do Norte','Rio Grande do Sul','Rio de Janeiro','Rondônia','Roraima','Santa Catarina','Sergipe','São Paulo','Tocantins');
 	$l10n['cart_category'] = 'Выбор продукта';
 	$l10n['cart_category_descr'] = 'Выберите продукт из следующего списка и введите необходимое количество.';
 	$l10n['cart_continue'] = 'Продолжить';
@@ -138,7 +110,6 @@
 	$l10n['cart_paynow_button'] = 'Оплати сейчас!';
 	$l10n['cart_paypal_image_1'] = 'https://www.paypal.com/ru_RU/i/btn/btn_buynowCC_LG.gif';
 	$l10n['cart_paypal_image_2'] = 'https://www.paypal.com/en_US/i/btn/btn_buynowCC_LG.gif';
-	$l10n['cart_plot_sales'] = 'Продажи';
 	$l10n['cart_price'] = 'Цена';
 	$l10n['cart_product_added'] = 'Продукт был добавлен в Корзину.';
 	$l10n['cart_product_list'] = 'Список товаров';
@@ -150,7 +121,6 @@
 	$l10n['cart_shipping'] = 'Доставка';
 	$l10n['cart_shipping_address'] = 'Адрес доставки';
 	$l10n['cart_shipping_option'] = 'Адрес доставки и адрес по накладной различаются';
-	$l10n['cart_show'] = 'Показать';
 	$l10n['cart_showvat_excluded'] = '(VAT excl.)';
 	$l10n['cart_showvat_included'] = 'Налог (вклю.)';
 	$l10n['cart_single_price'] = 'Специальная цена';
@@ -176,12 +146,12 @@
 	$l10n['cart_total_price'] = 'Общая стоимость';
 	$l10n['cart_total_vat'] = 'Общая стоимость с учетом налогов';
 	$l10n['cart_usstates_codes'] = array('AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY');
-	$l10n['cart_usstates_names'] = array('Алабама','Аляска','Аризона','Арканзас','Калифорния','Колорадо','Коннектикут','Делавэр','Округ Колумбия','Флорида','Джорджия','Гавайи','Айдахо','Иллинойс','Индиана','Айова','Канзас','Кентукки','Луизиана','Мэн','Мериленд','Массачусетс','Мичиган','Миннесота','Миссисипи','Миссури','Монтана','Небраска','Невада','Нью-Гэмпшир','Нью-Джерси','Нью-Мексико','Нью-Йорк','Сев. Каролина','Сев. Дакота','Огайо','Оклахома','Орегон','Пенсильвания','Род-Айленд','Юж. Каролина','Юж. Дакота','Теннесси','Техас','Юта','Вермонт','Виргиния','Вашингтон','Зап. Виргиния','Висконсин','Вайоминг');
+	$l10n['cart_usstates_names'] = array('Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming');
 	$l10n['cart_vat'] = 'Налог';
 	$l10n['cart_vat_address'] = 'Адрес по накладной';
 	$l10n['cart_vat_included'] = 'Налог (включено)';
-	$l10n['country_codes'] = array('AF','AL','DZ','AS','AD','AO','AI','AQ','AG','AR','AM','AW','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BM','BT','BO','BA','BW','BV','BR','IO','BN','BG','BF','BI','KH','CM','CA','CV','KY','CF','TD','CL','CN','CX','CC','CO','KM','CG','CK','CR','CI','HR','CU','CY','CZ','DK','DJ','DO','DM','TP','EC','EG','SV','GQ','ER','EE','ET','FK','FO','FJ','FI','FX','FR','GF','PF','TF','GA','GM','GE','DE','GH','GI','GR','GL','GD','GP','GU','GT','GW','GN','GY','HT','HM','HN','HK','HU','IS','IN','ID','IR','IQ','IE','IL','IT','JM','JP','JO','KZ','KE','KI','KP','KR','KW','KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MO','MK','MG','MW','MY','MV','ML','MT','MH','MQ','MR','MU','YT','MX','FM','MD','MC','MN','MS','MA','MZ','MM','NA','NR','NP','AN','NL','NC','NZ','NI','NG','NE','NU','NF','MP','NO','OM','PK','PW','PA','PG','PY','PE','PH','PN','PL','PT','PR','QA','RE','RO','RU','RW','GS','KN','LC','VC','WS','SM','ST','SA','SN','RS','SC','SL','SG','SK','SI','SB','SO','ZA','ES','LK','SH','PM','SD','SR','SJ','SZ','SE','CH','SY','TW','TJ','TZ','TH','TG','TK','TO','TT','TN','TR','TM','TC','TV','UM','UG','UA','AE','UK','US','UY','UZ','VU','VA','VE','VN','VG','VI','WF','EH','YE','ZR','ZM','ZW');
-	$l10n['country_names'] = array('Афганистан','Албания','Алжир','Американское Самоа','Андорра','Ангола','Ангилья','Антарктика','Антигуа и Барбуда','Аргентина','Армения','Аруба','Австралия','Австрия','Азербайджан','Багамские о-ва','Бахрейн','Бангладеш','Барбадос','Беларусь','Бельгия','Белиз','Бенин','Бермудские о-ва','Бутан','Боливия','Босния и Герцеговина','Боствана','О-в Буве','Бразилия','Британская терртория в Индийском океане','Бруней-Даруссалам','Болгария','Буркина-Фасо','Бурунди','Камбоджа','Камерун','Канада','Кабо-Верде','Кайманские о-ва','Центральноафриканская Республика','Чад','Чили','Китай','О-в Рождества','Кокосовые о-ва (Килинг)','Колумбия','Коморы','Конго','О-ва Кука','Коста-Рика','Кот-д\'Ивуар (берег Слоновой кости)','Хорватия(Hrvatska)','Куба','Кипр','Чехия','Дания','Джибути','Домиканская Республика','Доминика','Восточный Тимор','Эквадор','Египет','Сальвадор','Экваториальная Гвинея','Эритрея','Эстония','Эфиопия','Фолклендские о-ва (Мальвинские)','Фарерские о-ва','Фиджиi','Финляндия','Метрополия Франции','Франция','Французская Гвиана','Французская Полинезия','Французские Южные территории','Габон','Гамбия','Грузия','Германия','Гана','Гибралтар','Греция','Гренландия','Гренада','Гваделупа','Гуам','Гватемала','Гвинея-Биссау','Гвинея','Гайана','Гаити','О-в Херд и о-ва Макдональд','Гондурас','Гонконг','Венгрия','Исландия','Индия','Индонезия','Иран','Ирак','Ирландия','Израиль','Италия','Ямайка','Япония','Иордания','Казахстан','Кения','Кирибати','Корея(Сев.)','Корея(Юж.)','Кувейт','Кыргызстан','Лаос','Латвия','Ливан','Лесото','Либерия','Ливия','Лихтенштейн','Литва','Люксембург','Макао','Македония','Мадагаскар','Малаваи','Малайзия','Мальдивски о-ва','Мали','Мальта','Маршалловы о-ва','Мартиника','Мавритания','о-в Маврикий','Майотта','Мексика','Микронезия','Модова','Монако','Монголия','Монсеррат','Мороко','Мозамбика','Мьянма','Намибия','Науру','Непал','Нидерланды','Антильские о-ва','Нидерланды','Новая Зеландия','Никарагуа','Нигерия','Нигер','Ниуэ','О-в Норфолк','Сев. Марианские о-ва','Норвегия','Оман','Пакистан','Палау','Панама','Папуа-Новая Гвинея','Парагвай','Перу','Филиппины','Питкэн','Польша','Португалия','Пуэрто-Рико','Катар','Реюньон','Румыния','Российская Федерация','Руанда','Юж. Георгия и Юж. Санд. о-ва.','Сент-Китс и Невис','Сент-Люсия','Сент-Винсент и Гренадины','Самоа','Сан-Марино','Сан-Томе и Принсипи','Саудовская Аравия','Сенегал','Сейшельские о-ва','Cьерра-Леоне','Сингапур','Словакия','Словения','Соломоновы о-ва','Сомалия','Южная Африка','Испания','Шри-Ланка','О-в Вс. Елены','Сен-Пьер и Микелон','Судан','Суринам','Шпицберген и Ян-Майен','Свизиленд','Швеция','Швейцария','Сирия','Тайвань','Таджикистан','Танзания','Таиланд','Того','Токелау','Тонга','Тринидад и Тобаго','Тунис','Турция','Туркменистан','Теркс и Кайкос','Тувалу','Внешние малые о-ва США','Уганда','Украина','ОАЭ','Великобритания','США','Уругвай','Узбекистан','Вануату','Ватикан','Венесуэла','Вьетнам','Виргинские о-ва (Брит.)','Виргинские о-ва (США)','Уоллис и Футуна','Западная Сахара','Йемен','Югославия','Заир','Замбия','Зимбабве');
+	$l10n['country_codes'] = array('AF','AL','DZ','AS','AD','AO','AI','AQ','AG','AR','AM','AW','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BM','BT','BO','BA','BW','BV','BR','IO','BN','BG','BF','BI','KH','CM','CA','CV','KY','CF','TD','CL','CN','CX','CC','CO','KM','CG','CK','CR','CI','HR','CU','CY','CZ','DK','DJ','DO','DM','TP','EC','EG','SV','GQ','ER','EE','ET','FK','FO','FJ','FI','FX','FR','GF','PF','TF','GA','GM','GE','DE','GH','GI','GR','GL','GD','GP','GU','GT','GW','GN','GY','HT','HM','HN','HK','HU','IS','IN','ID','IR','IQ','IE','IL','IT','JM','JP','JO','KZ','KE','KI','KP','KR','KW','KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MO','MK','MG','MW','MY','MV','ML','MT','MH','MQ','MR','MU','YT','MX','FM','MD','MC','MN','MS','MA','MZ','MM','NA','NR','NP','AN','NL','NC','NZ','NI','NG','NE','NU','NF','MP','NO','OM','PK','PW','PA','PG','PY','PE','PH','PN','PL','PT','PR','QA','RE','RO','RU','RW','GS','KN','LC','VC','WS','SM','ST','SA','SN','SC','SL','SG','SK','SI','SB','SO','ZA','ES','LK','SH','PM','SD','SR','SJ','SZ','SE','CH','SY','TW','TJ','TZ','TH','TG','TK','TO','TT','TN','TR','TM','TC','TV','UM','UG','UA','AE','UK','US','UY','UZ','VU','VA','VE','VN','VG','VI','WF','EH','YE','YU','ZR','ZM','ZW');
+	$l10n['country_names'] = array('Afghanistan','Albania','Algeria','American Samoa','Andorra','Angola','Anguilla','Antarctica','Antigua and Barbuda','Argentina','Armenia','Aruba','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bermuda','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Bouvet Island','Brazil','British Indian Ocean Territory','Brunei Darussalam','Bulgaria','Burkina Faso','Burundi','Cambodia','Cameroon','Canada','Cape Verde','Cayman Islands','Central African Republic','Chad','Chile','China','Christmas Island','Cocos (Keeling Islands)','Colombia','Comoros','Congo','Cook Islands','Costa Rica','Cote D\'Ivoire (Ivory Coast)','Croatia (Hrvatska','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominican Republic','Dominica','East Timor','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Ethiopia','Falkland Islands (Malvinas)','Faroe Islands','Fiji','Finland','France Metropolitan','France','French Guiana','French Polynesia','French Southern Territories','Gabon','Gambia','Georgia','Germany','Ghana','Gibraltar','Greece','Greenland','Grenada','Guadeloupe','Guam','Guatemala','Guinea-Bissau','Guinea','Guyana','Haiti','Heard and McDonald Islands','Honduras','Hong Kong','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Korea (North)','Korea (South)','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Macau','Macedonia','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Martinique','Mauritania','Mauritius','Mayotte','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montserrat','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands Antilles','Netherlands','New Caledonia','New Zealand','Nicaragua','Nigeria','Niger','Niue','Norfolk Island','Northern Mariana Islands','Norway','Oman','Pakistan','Palau','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Pitcairn','Poland','Portugal','Puerto Rico','Qatar','Reunion','Romania','Russian Federation','Rwanda','S. Georgia and S. Sandwich Isls.','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and The Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Seychelles','Sierra Leone','Singapore','Slovak Republic','Slovenia','Solomon Islands','Somalia','South Africa','Spain','Sri Lanka','St. Helena','St. Pierre and Miquelon','Sudan','Suriname','Svalbard and Jan Mayen Islands','Swaziland','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Togo','Tokelau','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Turks and Caicos Islands','Tuvalu','US Minor Outlying Islands','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City State (Holy See)','Venezuela','Viet Nam','Virgin Islands (British)','Virgin Islands (US)','Wallis and Futuna Islands','Western Sahara','Yemen','Yugoslavia','Zaire','Zambia','Zimbabwe');
 	$l10n['date_days'] = array('Пн','Вт','Ср','Чт','Пт','Сб','Вс');
 	$l10n['date_format'] = '[D] [dd] [M] [yyyy]';
 	$l10n['date_full_days'] = array('понедельник','вторник','среда','четверг','пятница','суббота','воскресенье');
@@ -222,7 +192,6 @@
 	$l10n['form_validating'] = 'Проверка формы...';
 	$l10n['form_VAT'] = 'Поле [FIELD] не содержит ИНН.';
 	$l10n['form_yes'] = 'Да';
-	$l10n['guestbook_messages'] = 'Сообщения';
 	$l10n['InnerJump_Anchor_Menu'] = 'Главное меню:';
 	$l10n['InnerJump_Content'] = 'Перейти к контенту';
 	$l10n['InnerJump_Content_Title'] = 'Заголовок главного меню';
@@ -231,7 +200,7 @@
 	$l10n['InnerJump_Footer_Title_Content'] = 'Прочесть эту страницу заново';
 	$l10n['InnerJump_Footer_Title_Menu'] = 'Прочесть этот сайт заново';
 	$l10n['lang_code'] = 'ru-RU';
-	$l10n['noscript'] = 'Для использования этого сайта необходимо включить JavaScript.';
+	$l10n['noscript'] = 'Чтобы использовать этот сайт, необходимо включить JavaScript';
 	$l10n['private_area_account_not_allowed'] = 'Пожалуйста, войдите как зарегистрированный пользователь, чтобы получить доступ к этой странице.';
 	$l10n['private_area_generic_error'] = 'Общая ошибка.';
 	$l10n['private_area_login'] = 'Войти';
@@ -239,10 +208,8 @@
 	$l10n['private_area_logout'] = 'Выйти';
 	$l10n['private_area_password'] = 'Пароль';
 	$l10n['private_area_registration'] = 'Зарегистрироваться';
-	$l10n['private_area_registrations'] = 'Регистрация';
-	$l10n['private_area_title'] = 'Доступ ограничен';
+	$l10n['private_area_title'] = 'Автоматическая регистрация';
 	$l10n['private_area_username'] = 'Имя пользователя';
-	$l10n['private_area_validate_user'] = 'Проверьте идентичность этого пользователя вручную';
 	$l10n['product_option'] = 'Опция';
 	$l10n['rating_novote'] = 'Спасибо за ваше мнение';
 	$l10n['rating_vote'] = 'Голосовать';
@@ -264,9 +231,6 @@
 	$l10n['sitemap_title'] = 'Карта Сайта';
 	$l10n['sitemap_unfold'] = 'Растянуть все';
 	$l10n['welcomepage_title'] = 'Страница приветствия';
-	$l10n['wsx5manager_ads'] = 'Войдите в Панель управления сайтами со смартфона или планшета с помощью приложения WebSite X5 Manager.';
-	$l10n['wsx5manager_ads_linktext'] = 'Начнем';
-	$l10n['wsx5manager_title'] = 'WebSite X5 Manager';
 
 
 // End of file l10n.php

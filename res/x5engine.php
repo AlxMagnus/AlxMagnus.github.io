@@ -7,182 +7,744 @@
  * @package   X5engine
  * @copyright 2013 - Incomedia Srl
  * @license   Copyright by Incomedia Srl http://incomedia.eu
- * @version   WebSite X5 START 13.0.0
+ * @version   WebSite X5 Compact 10.0.0
  * @link      http://websitex5.com
  */
 
 @session_start();
 
+$imSettings = Array();
+$l10n = Array();
+$phpError = false;
+$ImMailer = new ImSendEmail();
+
+@include_once "imemail.inc.php";		// Email class - Static
+@include_once "x5settings.php";			// Basic settings - Dynamically created by WebSite X5
+@include_once "blog.inc.php";			// Blog data - Dynamically created by WebSite X5
+@include_once "access.inc.php";			// Private area data - Dynamically created by WebSite X5
+@include_once "l10n.php";				// Localizations - Dynamically created by WebSite X5
+@include_once "search.inc.php" ;		// Search engine data - Dynamically created by WebSite X5
 
 
 
 /**
- * Create the required instanced basing on the configuration setup by the user
+ * Blog class
+ * @access public
  */
-class Configuration
+class imBlog
 {
-    
-    static private $analytics = false;
-    static private $blog = false;
-    static private $cart = false;
-    static private $controlPanel = false;
-    static private $privateArea = false;
 
-    static public function getAnalytics()
-    {
-        global $imSettings;
+    var $comments;
+    var $postsPerPage = 5;
+    var $comPerPage = 10;
 
-        if (!isset($imSettings['analytics']) || $imSettings['analytics']['type'] != 'wsx5analytics') {
-            return null;
-        }
-
-        if (self::$analytics == false) {
-            $prefix = $imSettings['analytics']['database']['table'];
-            $dbconf = getDbData($imSettings['analytics']['database']['id']);
-            self::$analytics =  new Analytics($dbconf['host'], $dbconf['user'], $dbconf['password'], $dbconf['database'], $prefix);    
-        }
-
-        return self::$analytics;
-    }
-
-    static public function getBlog()
-    {
-        if (self::$blog == false) {
-            self::$blog = new imBlog();
-        }
-        return self::$blog;
-    }
-
-    static public function getCart()
-    {
-        global $imSettings;
-
-        if (self::$cart == false) {
-            self::$cart = new ImCart();
-            if (isset($imSettings['ecommerce']['database'])) {
-                $prefix = $imSettings['ecommerce']['database']['table'];
-                $dbconf = getDbData($imSettings['ecommerce']['database']['id']);
-                self::$cart->setDatabaseConnection($dbconf['host'], $dbconf['user'], $dbconf['password'], $dbconf['database'], $prefix);
-            }
-        }
-
-        return self::$cart;
-    }
-
-    static public function getControlPanel()
-    {
-        global $imSettings;
-
-        $icon = "";
-        if (isset($imSettings['admin']['icon'])) {
-            $icon = $imSettings['admin']['icon'];
-        }
-        else if (isset($imSettings['general']['icon'])) {
-            $icon = $imSettings['general']['icon'];
-        }
-        // Try to transform the url to a relative one
-        $icon = str_replace($imSettings['general']['url'], "", $icon);
-        // Prepend the logo icon with the correct path to root if it's not absolute
-        if (strlen($icon) && substr($icon, 0, 7) != "http://" && substr($icon, 0, 8) != "https://") {
-            $icon = "../" . trim($icon, "/");
-        }
-
-        if (self::$controlPanel == false) {
-            self::$controlPanel = new ControlPanel(
-                isset($imSettings['general']['sitename']) ? $imSettings['general']['sitename'] : "",
-                $imSettings['general']['url'],
-                $icon,
-                isset($imSettings['admin']['theme']) ? $imSettings['admin']['theme'] : "orange"
-            );
-        }
-
-        return self::$controlPanel;
-    }
-
-    static public function getPrivateArea()
-    {
-        global $imSettings;
-
-        if (!self::$privateArea) {
-            self::$privateArea = new imPrivateArea();
-            if (isset($imSettings['access']['dbid'])) {
-                $db = getDbData($imSettings['access']['dbid']);
-                self::$privateArea->setDbData($db['host'], $db['user'], $db['password'], $db['database'], $imSettings['access']['dbtable']);
-            }
-        }
-        return self::$privateArea;
+    /**
+     * Set the default number of posts to show in the home page
+     * @param integer $n
+     */
+    function setPostsPerPage($n) {
+        $this->postsPerPage = $n;
     }
 
     /**
-     * Load a dynamic object starting from its ID
-     * @param  String $id        The dynamic object id
-     * @return DynamicObject     The dynamic object
+     * Set the number of comments to show in each page
+     * @param integer $n
      */
-    static public function getDynamicObject($id)
-    {
-        global $imSettings;
-
-        $data = false;
-
-        if (isset($imSettings['dynamicobjects']['pages'][$id])) {
-            $data = $imSettings['dynamicobjects']['pages'][$id];
-        } else if (isset($imSettings['dynamicobjects']['template'][$id])) {
-            $data = $imSettings['dynamicobjects']['template'][$id];
-        }
-
-        if (!is_array($data)) {
-            return null;
-        }
-
-        $dynObj = new DynamicObject($id);
-        $dynObj->setDefaultText(str_replace(array("\n", "\r", "'"), array("<br />", "", "\\'"), $data['defaultContent']));
-
-        if (isset($data['dbid'])) {
-            $db = getDbData($data['dbid']);
-            $dynObj->loadFromDb($db['host'], $db['user'], $db['password'], $db['database'], $data['dbtable']);
-        } else if (isset($data['subfolder'])) {
-            $dynObj->loadFromFile(pathCombine(array($imSettings['general']['public_folder'], $data['subfolder'])));
-        }
-
-        return $dynObj;
+    function setCommentsPerPage($n) {
+        $this->comPerPage = $n;
     }
 
+    /**
+     * Format a timestamp
+     * 
+     * @param string $ts The timestamp
+     * 
+     * @return string
+     */
+    function formatTimestamp($ts)
+    {
+        return date("d/m/Y H:i:s", strtotime($ts));
+    }
 
     /**
-     * Get the configuration array
+     * Show the pagination links
+     * 
+     * @param string  $baseurl  The base url of the pagination
+     * @param integer $start    Start from this page
+     * @param integer $length   For this length
+     * @param integer $count    Count of the current objects to show
+     * 
+     * @return void
      */
-    static public function getSettings() 
+    function paginate($baseurl = "", $start, $length, $count)
+    {
+        echo "<div style=\"text-align: center;\">";
+        if ($start > 0)
+            echo "<a href=\"" . $baseurl . "start=" . ($start - $length) . "&length=" . $length . "\" class=\"imCssLink\">" . l10n("blog_pagination_prev", "&lt;&lt; Newer posts") . "</a>";
+        if ($start > 0 && $count > $start + $length)
+            echo " | ";
+        if ($count > $start + $length)
+            echo "<a href=\"" . $baseurl . "start=" . ($start + $length) . "&length=" . $length . "\" class=\"imCssLink\">" . l10n("blog_pagination_next", "Older posts &gt;&gt;") . "</a>";
+        echo "</div>";
+    }
+
+    /**
+     * Provide the page title tag to be shown in the header
+     * Keep track of the page using the $_GET vars provided:
+     *     - id
+     *     - category
+     *     - tag
+     *     - month
+     *     - search
+     *
+     * @param string $basetitle The base title of the blog, to be appended after the specific page title
+     * @param string $separator The separator char, default "-"
+     * 
+     * @return string The page title
+     */
+    function pageTitle($basetitle, $separator = "-") {
+        global $imSettings;
+
+        if (isset($_GET['id']) && isset($imSettings['blog']['posts'][$_GET['id']])) {
+            // Post
+            return htmlspecialchars($imSettings['blog']['posts'][$_GET['id']]['title'] . $separator . $basetitle);
+        } else if (isset($_GET['category']) && isset($imSettings['blog']['posts_cat'][$_GET['category']])) {
+            // Category
+            return htmlspecialchars(str_replace("_", " ", $_GET['category']) . $separator . $basetitle);
+        } else if (isset($_GET['tag'])) {
+            // Tag
+            return htmlspecialchars(strip_tags($_GET['tag']) . $separator . $basetitle);
+        } else if (isset($_GET['month']) && is_numeric($_GET['month']) && strlen($_GET['month']) == 6) {
+            // Month
+            return htmlspecialchars(substr($_GET['month'], 4, 2) . "/" . substr($_GET['month'], 0, 4) . $separator . $basetitle);
+        } else if (isset($_GET['search'])) {
+            // Search
+            return htmlspecialchars(strip_tags(urldecode($_GET['search'])) . $separator . $basetitle);
+        }
+        
+        // Default (Home page): Show the blog description
+        return htmlspecialchars($basetitle);
+    }
+
+    /**
+     * Get the open graph tags for a post
+     * @param  $id   The post id
+     * @param  $tabs The tabs (String) to prepend to each tag
+     * @return string      The HTML tags
+     */
+    function getOpengraphTags($id, $tabs = "") {
+        global $imSettings;
+        $html = "";
+
+        if (!isset($imSettings['blog']['posts'][$id]) || !isset($imSettings['blog']['posts'][$id]['opengraph']))
+            return $html;
+        $og = $imSettings['blog']['posts'][$id]['opengraph'];
+        if (isset($og['url'])) $html .= $tabs . '<meta property="og:url" content="' . htmlspecialchars($og['url']) . '" />' . "\n";
+        if (isset($og['type'])) $html .= $tabs . '<meta property="og:type" content="' . $og['type'] . '" />' . "\n";
+        if (isset($og['title'])) $html .= $tabs . '<meta property="og:title" content="' . htmlspecialchars($og['title']) . '" />' . "\n";
+        if (isset($og['description'])) $html .= $tabs . '<meta property="og:description" content="' . htmlspecialchars($og['description']) . '" />' . "\n";
+        if (isset($og['updated_time'])) $html .= $tabs . '<meta property="og:updated_time" content="' . htmlspecialchars($og['updated_time']) . '" />' . "\n";
+        if (isset($og['images']) && is_array($og['images'])) {
+            foreach ($og['images'] as $image) {
+                $html .= $tabs . '<meta property="og:image" content="' . htmlspecialchars($image) . '" />' . "\n";
+            }
+        }
+        return $html;
+    }
+
+    /**
+     * Get the count of valid posts
+     * @return integer
+     */
+    function getPostsCount() {
+        global $imSettings;
+        $count = 0;
+        $utcTime = time();
+        foreach ($imSettings['blog']['posts'] as $id => $post) {
+            if ($post['utc_time'] <= $utcTime) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get the posts enabled for visualization
+     * @return array
+     */
+    function getPosts() {
+        global $imSettings;
+        $posts = array();
+        $utcTime = time();
+        foreach ($imSettings['blog']['posts'] as $id => $post) {
+            if ($post['utc_time'] <= $utcTime) {
+                $posts[$id] = $post;
+            }
+        }
+        return $posts;
+    }
+
+    /**
+     * Get the count of valid posts in a category
+     * @return integer
+     */
+    function getCategoryPostCount($category) {
+        global $imSettings;
+        $bps = isset($imSettings['blog']['posts_cat'][$category]) ? $imSettings['blog']['posts_cat'][$category] : false;
+        if (!is_array($bps))
+            return 0;
+        $count = 0;
+        $utcTime = time();
+        foreach ($bps as $id) {
+            if (!isset($imSettings['blog']['posts'][$id])) continue;
+            if ($imSettings['blog']['posts'][$id]['utc_time'] <= $utcTime) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get the posts enabled for visualization in a category
+     * @return array
+     */
+    function getCategoryPosts($category) {
+        global $imSettings;
+        $bps = isset($imSettings['blog']['posts_cat'][$category]) ? $imSettings['blog']['posts_cat'][$category] : false;
+        if (!is_array($bps))
+            return 0;
+        $posts = array();
+        $utcTime = time();
+        foreach ($bps as $id) {
+            if (!isset($imSettings['blog']['posts'][$id])) continue;
+            if ($imSettings['blog']['posts'][$id]['utc_time'] <= $utcTime) {
+                $posts[$id] = $imSettings['blog']['posts'][$id];
+            }
+        }
+        return $posts;
+    }
+
+    /**
+     * Get the count of valid posts in a Tag
+     * @return integer
+     */
+    function getTagPostCount($tag) {
+        global $imSettings;
+        $count = 0;
+        $utcTime = time();
+        foreach ($imSettings['blog']['posts'] as $id => $post) {
+            if ($post['utc_time'] <= $utcTime && in_array($tag, $post['tag'])) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get the posts enabled for visualization in a tag
+     * @return array
+     */
+    function getTagPosts($tag) {
+        global $imSettings;
+        $posts = array();
+        $utcTime = time();
+        foreach ($imSettings['blog']['posts'] as $id => $post) {
+            if ($post['utc_time'] <= $utcTime && in_array($tag, $post['tag'])) {
+                $posts[$id] = $post;
+            }
+        }
+        return $posts;
+    }
+
+    /**
+     * Get the posts of a month
+     * @param  string $month
+     * @return integer
+     */
+    function getMonthPostsCount($month) {
+        global $imSettings;
+        $count = 0;
+        $utcTime = time();
+        if (!isset($imSettings['blog']['posts_month'][$month])) {
+            return 0;
+        }
+        foreach ($imSettings['blog']['posts_month'][$month] as $id) {
+            if (isset($imSettings['blog']['posts'][$id]) && $imSettings['blog']['posts'][$id]['utc_time'] < $utcTime) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get the posts of a month
+     * @param  string $month
+     * @return array
+     */
+    function getMonthPosts($month) {
+        global $imSettings;
+        $posts = array();
+        $utcTime = time();
+        if (!isset($imSettings['blog']['posts_month'][$month])) {
+            return array();
+        }
+        foreach ($imSettings['blog']['posts_month'][$month] as $id) {
+            if (isset($imSettings['blog']['posts'][$id]) && $imSettings['blog']['posts'][$id]['utc_time'] < $utcTime) {
+                $posts[$id] = $imSettings['blog']['posts'][$id];
+            }
+        }
+        return $posts;
+    }
+
+    /**
+     * Show the page description to be echoed in the metatag description tag.
+     * Keep track of the page using the $_GET vars provided:
+     *     - id
+     *     - category
+     *     - tag
+     *     - month
+     *     - search
+     *
+     * @return string The required description
+     */
+    function pageDescription()
+    {
+        global $imSettings;
+        
+        if (isset($_GET['id']) && isset($imSettings['blog']['posts'][$_GET['id']])) {
+            // Post
+            return htmlspecialchars(str_replace("\n", " ", $imSettings['blog']['posts'][$_GET['id']]['summary']));
+        } else if (isset($_GET['category'])) {
+            // Category
+            return htmlspecialchars(strip_tags($_GET['category']));
+        } else if (isset($_GET['tag'])) {
+            // Tag
+            return htmlspecialchars(strip_tags($_GET['tag']));
+        } else if (isset($_GET['month'])) {
+            // Month
+            return htmlspecialchars(substr($_GET['month'], 4, 2) . "/" . substr($_GET['month'], 0, 4));
+        } else if (isset($_GET['search'])) {
+            // Search
+            return htmlspecialchars(strip_tags(urldecode($_GET['search'])));
+        }
+        
+        // Default (Home page): Show the blog description
+        return htmlspecialchars(str_replace("\n", " ", $imSettings['blog']['description']));
+    }
+
+    /**
+     * Get the last update date
+     *
+     * @return string
+     */
+    function getLastModified()
+    {
+        global $imSettings;
+        $c = $this->comments->getComments($_GET['id']);
+        if ($_GET['id'] != "" && $c != -1) {
+            return $this->formatTimestamp($c[count($c)-1]['timestamp']);
+        } else {
+            $utcTime = time();
+            foreach ($imSettings['blog']['posts'] as $id => $post) {
+                if ($post['utc_time'] < $utcTime) {
+
+                }
+            }
+            $last_post = $imSettings['blog']['posts'];
+            $last_post = array_shift($last_post);
+            return $last_post['timestamp'];
+        }
+    }
+
+    /**
+     * Show a post
+     * 
+     * @param string  $id    the post id
+     * @param intger  $ext   Set 1 to show as extended
+     * @param integer $first Set 1 if this is the first post in the list
+     *
+     * @return void
+     */
+    function showPost($id, $ext=0, $first=0)
+    {
+        global $imSettings;
+        
+        $bs = $imSettings['blog'];
+        $bp = isset($bs['posts'][$id]) ? $bs['posts'][$id] : false;
+        $utcTime = time();
+
+        if (is_bool($bp) || $bp['utc_time'] > $utcTime)
+            return;
+
+
+        $title = !$ext ? "<a href=\"?id=" . $id . "\">" . $bp['title'] . "</a>" : $bp['title'];
+        echo "<h2 class=\"imPgTitle\" style=\"display: block;\">" . $title . "</h2>\n";
+        echo "<div class=\"imBreadcrumb\" style=\"display: block;\">" . l10n('blog_published_by') . "<strong> " . $bp['author'] . " </strong>";
+        echo l10n('blog_in') . " <a href=\"?category=" . urlencode($bp['category']) . "\" target=\"_blank\" rel=\"nofollow\">" . $bp['category'] . "</a> &middot; " . $bp['timestamp'];
+
+        // Media audio/video
+        if (isset($bp['media'])) {
+            echo " &middot; <a href=\"" . $bp['media'] . "\">Download " . basename($bp['media']) . "</a>";
+        }
+
+        if (count($bp['tag']) > 0) {
+            echo "<br />Tags: ";
+            for ($i = 0; $i < count($bp['tag']); $i++) {
+                echo "<a href=\"?tag=" . $bp['tag'][$i] . "\">" . $bp['tag'][$i] . "</a>";
+                if ($i < count($bp['tag']) - 1)
+                    echo ",&nbsp;";
+            }
+        }
+        echo "</div>\n";
+
+        if ($ext || $first && $imSettings['blog']['post_type'] == 'firstshown' || $imSettings['blog']['post_type'] == 'allshown') {
+            echo "<div class=\"imBlogPostBody\">\n";
+
+            if (isset($bp['mediahtml']) || isset($bp['slideshow'])) {
+                // Audio/video
+                if (isset($bp['mediahtml'])) {
+                    echo $bp['mediahtml'] . "\n";
+                }
+
+                // Slideshow
+                if (isset($bp['slideshow'])) {
+                    echo $bp['slideshow'];
+                }
+                echo "<div style=\"clear: both; margin-bottom: 10px;\"></div>";
+            }
+            echo $bp['body'];
+
+            if (count($bp['sources']) > 0) {
+                echo "\t<div class=\"imBlogSources\">\n";
+                echo "\t\t<b>" . l10n('blog_sources') . "</b>:<br />\n";
+                echo "\t\t<ul>\n";
+
+                foreach ($bp['sources'] as $source) {
+                    echo "\t\t\t<li>" . $source . "</li>\n";
+                }
+
+                echo "\t\t</ul>\n\t</div>\n";
+            }
+            echo (isset($imSettings['blog']['addThis']) ? "<br />" . $imSettings['blog']['addThis'] : "") . "<br /><br /></div>\n";
+        } else {
+            echo "<div class=\"imBlogPostSummary\">" . $bp['summary'] . "</div>\n";
+        }
+        if ($ext == 0) {
+            echo "<div class=\"imBlogPostRead\"><a class=\"imCssLink\" href=\"?id=" . $id . "\">" . l10n('blog_read_all') ." &raquo;</a></div>\n";
+        } else if (isset($bp['foo_html'])) {
+            echo "<div class=\"imBlogPostFooHTML\">" . $bp['foo_html'] . "</div>\n";
+        }
+
+        if ($ext != 0 && $bp['comments']) {
+            if ($imSettings['blog']['comments_source'] == 'wsx5') {
+                echo "<div id=\"blog-topic\">\n";
+                $this->comments = new ImTopic($imSettings['blog']['file_prefix'] . 'pc' . $id, "../", "index.php?id=" . $id);
+                $this->comments->setCommentsPerPage($this->comPerPage);
+                // Show the comments
+                    $this->comments->loadXML($bs['folder']);
+                $this->comments->setPostUrl("index.php?id=" . $id);
+                if ($imSettings['blog']['comment_type'] != "stars") {
+                    $this->comments->showSummary($bs['comment_type'] != "comment");
+                    $this->comments->showComments($bs['comment_type'] != "comment", $bs["comments_order"], $bs["abuse"]);
+                    $this->comments->showForm($bs['comment_type'] != "comment", $bs['captcha'], $bs['moderate'], $bs['email'], "blog", $imSettings['general']['url'] . "/admin/blog.php?category=" . str_replace(" ", "_", $imSettings['blog']['posts'][$id]['category']) . "&post=" . $id);
+                } else {
+                    $this->comments->showRating();
+                }
+                echo "</div>";
+                echo "<script type=\"text/javascript\">x5engine.boot.push('x5engine.topic({ target: \\'#blog-topic\\', scrollbar: false})', false, 6);</script>\n";
+            } else {
+                echo $imSettings['blog']['comments_code'];
+            }
+        }
+    }
+
+    /**
+     * Find the posts tagged with tag
+     * 
+     * @param string $tag The searched tag
+     *
+     * @return void
+     */
+    function showTag($tag)
+    {
+        global $imSettings;
+        $start = isset($_GET['start']) ? max(0, (int)$_GET['start']) : 0;
+        $length = isset($_GET['length']) ? (int)$_GET['length'] : $this->postsPerPage;
+        $count = $this->getTagPostCount($tag);
+
+        if ($count == 0)
+            return;
+        $bps = array_values($this->getTagPosts($tag));
+        for($i = $start; $i < ($count < $start + $length ? $count : $start + $length); $i++) {
+            if ($i > $start)
+                echo "<div class=\"imBlogSeparator\"></div>";
+            $this->showPost($bps[$i]['id'], 0, ($i == $start ? 1 : 0));
+        }
+        $this->paginate("?tag=" . $tag . "&", $start, $length, $count);
+    }
+
+    /**
+     * Find the post in a category
+     * 
+     * @param strmg $category the category ID
+     *
+     * @return void
+     */
+    function showCategory($category)
+    {
+        global $imSettings;
+        $start = isset($_GET['start']) ? max(0, (int)$_GET['start']) : 0;
+        $length = isset($_GET['length']) ? (int)$_GET['length'] : $this->postsPerPage;
+        $count = $this->getCategoryPostCount($category);
+
+        $bps = array_values($this->getCategoryPosts($category));
+        for($i = $start; $i < ($count < $start + $length ? $count : $start + $length); $i++) {
+            if ($i > $start)
+                echo "<div class=\"imBlogSeparator\"></div>";
+            $this->showPost($bps[$i]['id'], 0, ($i == 0 ? 1 : 0));
+        }
+        $this->paginate("?category=" . $category . "&", $start, $length, $count);
+    }
+
+    /**
+     * Find the posts of the month
+     * 
+     * @param string $month The mont
+     *
+     * @return void
+     */
+    function showMonth($month)
+    {
+        global $imSettings;
+        $start = isset($_GET['start']) ? max(0, (int)$_GET['start']) : 0;
+        $length = isset($_GET['length']) ? (int)$_GET['length'] : $this->postsPerPage;
+        $count = $this->getMonthPostsCount($month);
+
+        $bps = array_values($this->getMonthPosts($month));
+        for($i = $start; $i < ($count < $start + $length ? $count : $start + $length); $i++) {
+            if ($i > $start) {
+                echo "<div class=\"imBlogSeparator\"></div>";
+            }
+            $this->showPost($bps[$i]['id'], 0, ($i == $start ? 1 : 0));
+        }
+        $this->paginate("?month=" . $month . "&", $start, $length, $count);
+    }
+
+    /**
+     * Show the last n posts
+     * 
+     * @param integer $count the number of posts to show
+     *
+     * @return void
+     */
+    function showLast($count)
+    {
+        global $imSettings;
+        $start = isset($_GET['start']) ? max(0, (int)$_GET['start']) : 0;
+        $length = isset($_GET['length']) ? (int)$_GET['length'] : $this->postsPerPage;
+
+        $bps = array_values($this->getPosts());
+        $bpsc = $this->getPostsCount();
+        for($i = $start; $i < ($bpsc < $start + $length ? $bpsc : $start + $length); $i++) {
+            if ($i > $start) {
+                echo "<div class=\"imBlogSeparator\"></div>";
+            }
+            $this->showPost($bps[$i]['id'], 0, ($i == $start ? 1 : 0));
+        }
+        $this->paginate("?", $start, $length, $bpsc);
+    }
+
+    /**
+     * Show the search results
+     * 
+     * @param string  $search the search query
+     *
+     * @return void
+     */
+    function showSearch($search)
+    {
+        global $imSettings;
+        $start = isset($_GET['start']) ? max(0, (int)$_GET['start']) : 0;
+        $length = isset($_GET['length']) ? (int)$_GET['length'] : $this->postsPerPage;
+
+        $bps = $this->getPosts();
+        $j = 0;
+        if (is_array($bps)) {
+            $bpsc = count($bps);
+            $results = array();
+            for ($i = $start; $i < $bpsc; $i++) {
+                if (stristr($imSettings['blog']['posts'][$bps[$i]]['title'], $search) || stristr($imSettings['blog']['posts'][$bps[$i]]['summary'], $search) || stristr($imSettings['blog']['posts'][$bps[$i]]['body'], $search)) {
+                    $results[] = $bps[$i];
+                    $j++;
+                }
+            }
+            for ($i = $start; $i < ($j < $start + $length ? $j : $start + $length); $i++) {
+                if ($i > $start)
+                    echo "<div class=\"imBlogSeparator\"></div>";
+                $this->showPost($bps[$i], 0, ($i == $start ? 1 : 0));
+            }
+            $this->paginate("?search=" . $search . "&", $start, $length, $j);
+            if ($j == 0) {
+                echo "<div class=\"imBlogEmpty\">Empty search</div>";
+            }
+        } else {
+            echo "<div class=\"imBlogEmpty\">Empty blog</div>";
+        }
+    }
+
+    /**
+     * Show the categories sideblock
+     * 
+     * @param integer $n The number of categories to show
+     *
+     * @return void
+     */
+    function showBlockCategories($n)
     {
         global $imSettings;
 
-        return $imSettings;
+        if (is_array($imSettings['blog']['posts_cat'])) {
+            $categories = array();
+            foreach ($this->getPosts() as $id => $post) {
+                if (!in_array($post['category'], $categories)) {
+                    $categories[] = $post['category'];
+                }
+            }
+            sort($categories);
+            echo "<ul>";
+            for ($i = 0; $i < count($categories) && $i < $n; $i++) {
+                echo "<li><a href=\"?category=" . urlencode($categories[$i]) . "\">" . $categories[$i] . "</a></li>";
+            }
+            echo "</ul>";
+        }
+    }
+
+    /**
+     * Show the cloud sideblock
+     * 
+     * @param string $type TAGS or CATEGORY
+     *
+     * @return void;
+     */
+    function showBlockCloud($type)
+    {
+        global $imSettings;
+
+        $max = 0;
+        $min_em = 0.95;
+        $max_em = 1.25;
+        if ($type == "tags") {
+            $tags = array();
+            foreach ($this->getPosts() as $id => $post) {
+                foreach ($post['tag'] as $tag) {
+                    if (!isset($tags[$tag]))
+                        $tags[$tag] = 1;
+                    else
+                        $tags[$tag] = $tags[$tag] + 1;
+                    if ($tags[$tag] > $max)
+                        $max = $tags[$tag];
+                }
+            }
+            if (count($tags) == 0)
+                return;
+
+            $tags = shuffleAssoc($tags);
+            
+            foreach ($tags as $name => $number) {
+                $size = number_format(($number/$max * ($max_em - $min_em)) + $min_em, 2, '.', '');
+                echo "\t\t\t<span class=\"imBlogCloudItem\" style=\"font-size: " . $size . "em;\">\n";
+                echo "\t\t\t\t<a href=\"?tag=" . urlencode($name) . "\" style=\"font-size: " . $size . "em;\">" . $name . "</a>\n";
+                echo "\t\t\t</span>\n";
+            }
+        } else if ($type == "categories") {
+            $categories = array();
+            foreach ($this->getPosts() as $id => $post) {
+                if (!isset($categories[$post['category']]))
+                    $categories[$post['category']] = 1;
+                else
+                    $categories[$post['category']] = $categories[$post['category']] + 1;
+                if ($categories[$post['category']] > $max)
+                    $max = $categories[$post['category']];
+            }
+            if (count($categories) == 0)
+                return;
+
+            $categories = shuffleAssoc($categories);
+
+            foreach ($categories as $name => $number) {
+                $size = number_format(($number/$max * ($max_em - $min_em)) + $min_em, 2, '.', '');
+                echo "\t\t\t<span class=\"imBlogCloudItem\" style=\"font-size: " . $size . "em;\">\n";
+                echo "\t\t\t\t<a href=\"?category=" . urlencode($name) . "\" style=\"font-size: " . $size . "em;\">" . $name . "</a>\n";
+                echo "\t\t\t</span>\n";
+            }
+        }
+    }
+
+    /**
+     * Show the month sideblock
+     * 
+     * @param integer $n Number of entries
+     *
+     * @return void
+     */
+    function showBlockMonths($n)
+    {
+        global $imSettings;
+
+        if (is_array($imSettings['blog']['posts_month'])) {
+            $months = array();
+            foreach ($this->getPosts() as $id => $post) {
+                if (!in_array($post['month'], $months)) {
+                    $months[] = $post['month'];
+                }
+            }
+            rsort($months);
+            echo "<ul>";
+            for ($i = 0; $i < count($months) && $i < $n; $i++) {
+                echo "<li><a href=\"?month=" . urlencode($months[$i]) . "\">" . (strlen($months[$i]) == 6 ? substr($months[$i], 4, 2) . "/" . substr($months[$i], 0, 4) : $months[$i]) . "</a></li>";
+            }
+            echo "</ul>";
+        }
+    }
+
+    /**
+     * Show the last posts block
+     * 
+     * @param integer $n The number of post to show
+     *
+     * @return void
+     */
+    function showBlockLast($n)
+    {
+        global $imSettings;
+
+        $posts = array_values($this->getPosts());
+        if (is_array($posts)) {
+            echo "<ul>";
+            for ($i = 0; $i < count($posts) && $i < $n; $i++) {
+                echo "<li><a href=\"?id=" . $posts[$i]['id'] . "\">" . $posts[$i]['title'] . "</a></li>";
+            }
+            echo "</ul>";
+        }
     }
 }
 
+
+
 /**
- * x5Captcha handling class
+ * Captcha handling class
  * @access public
  */
-class X5Captcha {
-
-    private $nameList;
-    private $charList;
-
-    /**
-     * Build a new captcha class
-     * @param {Array} $nameList
-     * @param {Array} $charList
-     */
-    function __construct($nameList, $charList) {
-        $this->nameList = $nameList;
-        $this->charList = $charList;
-    }
+class imCaptcha {
 
     /**
      * Show the captcha chars
      */
     function show($sCode)
     {
+        global $oNameList;
+        global $oCharList;
+
         $text = "<!DOCTYPE HTML>
             <html>
           <head>
@@ -194,9 +756,8 @@ class X5Captcha {
           </head>
           <body style=\"margin: 0; padding: 0; border-collapse: collapse;\">";
 
-        for ($i = 0; $i < strlen($sCode); $i++) {
-            $text .= "<img style=\"margin:0; padding:0; border: 0; border-collapse: collapse; width: 24px; height: 24px; position: absolute; top: 0; left: " . (24 * $i) . "px;\" src=\"imcpa_".$this->nameList[substr($sCode, $i, 1)].".gif\" width=\"24\" height=\"24\">";
-        }
+        for ($i=0; $i<strlen($sCode); $i++)
+            $text .= "<img style=\"margin:0; padding:0; border: 0; border-collapse: collapse; width: 24px; height: 24px; position: absolute; top: 0; left: " . (24 * $i) . "px;\" src=\"imcpa_".$oNameList[substr($sCode, $i, 1)].".gif\" width=\"24\" height=\"24\">";
 
         $text .= "</body></html>";
 
@@ -205,118 +766,469 @@ class X5Captcha {
 
     /**
      * Check the sent data
-     * @param {String} code The correct code
-     * @param {String} ans  The user's answer
+     * @param sCode The correct code (string)
+     * @param dans The user's answer (string)
      */
-    function check($code, $ans)
+    function check($sCode, $ans)
     {
-        if ($ans == "") {
+        global $oCharList;
+        if ($ans == "")
             return '-1';
-        }
-        for ($i = 0; $i < strlen($code); $i++) {
-            if ($this->charList[substr(strtoupper($code), $i, 1)] != substr(strtoupper($ans), $i, 1)) {
-                return '-1';
-            }
-        }
+        for ($i=0; $i<strlen($sCode); $i++)
+          if ($oCharList[substr(strtoupper($sCode), $i, 1)] != substr(strtoupper($ans), $i, 1))
+            return '-1';
         return '0';
     }
 }
 
 
-/**
- * reCaptcha handling class
- * @access public
- */
-class ReCaptcha {
-
-    private $secretKey;
-
-    /**
-     * Build a new captcha class
-     * @param {String} $secretKey
-     */
-    function __construct($secretKey) {
-        $this->secretKey = $secretKey;
-    }
-
-    /**
-     * Check the response
-     * @param $response The response to be checked
-     */
-    function check($response)
-    {
-        // Create the POST data
-        $post = "secret=" . urlencode($this->secretKey) . "&response=" . urlencode($response);
-        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $post .= "&remoteip=" . urldecode($_SERVER['HTTP_X_FORWARDED_FOR']);
-        }
-        else if (isset($_SERVER['REMOTE_ADDR'])) {
-            $post .= "&remoteip=" . urldecode($_SERVER['REMOTE_ADDR']);   
-        }
-
-        // Use curl instead of file_get_contents (which can be blocked)
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://www.google.com/recaptcha/api/siteverify");
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
-        $result = curl_exec($ch);
-        curl_close($ch);
-
-        return $result;
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
 /**
- * Blog class
- * @access public
+ * @summary
+ * Manage the comment structure of a topic. It can load and save the comments from/to a file or a database.
+ * To use it, you must include __x5engine.php__ in your code.
+ * 
+ * This class is available only in the **Professional**, **Evolution** and **Compact** editions.
+ *
+ * @description
+ * Build a new ImComment object.
+ * 
+ * @constructor
  */
-class ImGuestbook
+class ImComment
 {
-	/**
-	 * Get all the comments from all the guestbooks in the current website
-	 *
-	 * @param String $from       The start date (can be empty)
-	 * @param String $to         The end date (can be empty)
-	 * @param Boolean $approved  True to get only the approved comments, false to the only the ones waiting for validation
-	 * 
-	 * @return Array
-	 */
-	static public function getAllComments($from = "", $to = "", $approved = true)
-	{
-		global $imSettings;
 
-		$commentsArray = array();
-		foreach ($imSettings['guestbooks'] as $gb) {
-			$comments = new ImTopic($gb['id'], "../", "index.php?id=" . $gb['id']);
-	            $comments->loadXML($gb['folder']);
-	        foreach ($comments->getComments($from, $to, $approved) as $comment) {
-	        	$comment['title'] = "";
-	            $commentsArray[] = $comment;
-	        }
-		}
-		usort($commentsArray, array("ImTopic", "compareCommentsArray"));
-		return $commentsArray;
-	}
+    var $comments = array();
+    var $error = 0;
+
+    /**
+     * Load the comments from an xml file
+     * 
+     * @param {string} $file The source file path
+     *
+     * @return {Void}
+     */
+    function loadFromXML($file)
+    {
+        if (!file_exists($file)) {
+            $this->comments = array();
+            return;
+        }
+
+        $xmlstring = @file_get_contents($file); 
+        if (strpos($xmlstring, "<?xml") !== false) {
+            $xml = new imXML();
+            $id = 0;
+
+            // Remove the garbage (needed to avoid loosing comments when the xml string is malformed)
+            $xmlstring = preg_replace('/<([0-9]+)>.*<\/\1>/i', '', $xmlstring);
+            $xmlstring = preg_replace('/<comment>\s*<\/comment>/i', '', $xmlstring);
+            
+            $comments = $xml->parse_string($xmlstring);
+            if ($comments !== false && is_array($comments)) {
+                $tc = array();
+                if (!isset($comments['comment'][0]) || !is_array($comments['comment'][0]))
+                    $comments['comment'] = array($comments['comment']);
+                for ($i = 0; $i < count($comments['comment']); $i++) {
+                    foreach ($comments['comment'][$i] as $key => $value) {
+                        if ($key == "timestamp" && strpos($value, "-") == 2) {
+                            // The v8 and v9 timestamp was inverted. For compatibility, let's convert it to the correct format.
+                            // The v10 format is yyyy-mm-dd hh:ii:ss
+                            // The v8 and v9 format is dd-mm-yyyy hh:ii:ss
+                            $value = preg_replace("/([0-9]{2})\-([0-9]{2})\-([0-9]{4}) ([0-9]{2})\:([0-9]{2})\:([0-9]{2})/", "$3-$2-$1 $4:$5:$6", $value);
+                        }
+                        $tc[$i][$key] = str_replace(array("\\'", '\\"'), array("'", '"'), htmlspecialchars_decode($value));
+                        if ($key == "rating" && is_numeric($value) && intval($value) > 5) {
+                            $tc[$i][$key] = "5";
+                        }
+                    }
+                    $tc[$i]['id'] = $id++;
+                }
+                $this->comments = $tc;
+            } else {
+                // The comments cannot be retrieved. The XML is jammed.
+                // Do a backup copy of the file and then reset the xml.
+                // Hashed names ensure that a file is not copied more than once
+                $n = $file . "_version_" . md5($xmlstring);
+                if (!@file_exists($n))
+                    @copy($file, $n);
+                $this->comments = array();
+            }
+        } else {
+            $this->loadFromOldFile($file);
+        }
+    }
+
+    /**
+     * Get the comments from a v8 comments file.
+     * Use loadFromXML instead
+     *
+     * @see [loadFromXML](##imcommentloadfromxmlfile)
+     * @deprecated
+     * 
+     * @param {string} $file The source file path
+     *
+     * @return {Void}
+     */
+    function loadFromOldFile($file)
+    {
+        if (!@file_exists($file)) {
+            $this->comments = array();
+            return;
+        }
+        $f = @file_get_contents($file);
+        $f = explode("\n", $f);
+        for ($i = 0;$i < count($f)-1; $i += 6) {
+            $c[$i/6]['id'] = $i / 6;
+            $c[$i/6]['name'] = stripslashes($f[$i]);
+            $c[$i/6]['email'] = $f[$i+1];
+            $c[$i/6]['url'] = $f[$i+2];
+            $c[$i/6]['body'] = stripslashes($f[$i+3]);
+            $c[$i/6]['timestamp'] = preg_replace("/([0-9]{2})\-([0-9]{2})\-([0-9]{4}) ([0-9]{2})\:([0-9]{2})\:([0-9]{2})/", "$3-$2-$1 $4:$5:$6", $f[$i+4]);
+            $c[$i/6]['approved'] = $f[$i+5];
+            $c[$i/6]['rating'] = 0;
+        }
+        $this->comments = $c;
+    }
+
+    /**
+     * Save the comments in a xml file
+     * 
+     * @param {string} $file The destination file path
+     *
+     * @return {boolean} True if the file was saved correctly
+     */
+    function saveToXML($file)
+    {
+        // If the count is 0, delete the file and exit
+        if (count($this->comments) === 0) {
+            if (@file_exists($file))
+                @unlink($file);
+            return true;
+        }
+
+        // If the folder doesn't exists, try to create it
+        $dir = @dirname($file);
+        if ($dir != "" && $dir != "/" && $dir != "." && $dir != "./" && !file_exists($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+
+        $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        $xml .= "<comments>\n";
+        $i = 0;
+        foreach ($this->comments as $comment) {
+            $txml = "";
+            foreach ($comment as $key => $value) {
+                // Well formed content only
+                if (!preg_match('/[0-9]+/', $key) && in_array(gettype($value), array('string', 'integer', 'double'))) {
+                    $code = str_replace(array("\\'", '\\"', "\\\""), array("'", '"', "\""), preg_replace('/[\n\r\t]*/', '', nl2br($value)));
+                    $txml .= "\t\t<" . $key . "><![CDATA[" . htmlspecialchars($code) . "]]></" . $key . ">\n";
+                }
+            }
+            if ($txml != "")
+                $xml .= "\t<comment>\n" . $txml . "\t</comment>\n";
+        }
+        $xml .= "</comments>";
+
+        if ((is_writable($file) || !file_exists($file))) {
+            if (!$f = @fopen($file, 'w+')) {
+                $this->error = -3;
+                return false;
+            } else {
+                if (flock($f, LOCK_EX)) {
+                    $locked = 1;
+                }
+
+                if (fwrite($f, $xml) === false) {
+                    $this->error = -4;
+                    return false;
+                } else {
+                    if($locked)
+                        flock($f, LOCK_UN);
+                    fclose($f);
+                    $this->error = 0;
+                    return true;
+                }
+            }
+        } else {
+            $this->error = -2;
+            return false;
+        }
+    }
+
+
+    /**
+     * Add a comment to a file
+     * 
+     * @param {array} $comment the array of data to store
+     *
+     * @return {Void}
+     */
+    function add($comment)
+    {
+        foreach ($comment as $key => $value) {
+            $comment[$key] = $this->filterCode($value, true);
+        }
+        $this->comments[] = $comment;
+    }
+
+    /**
+     * Sort the array
+     * 
+     * @param string $orderby Field to compare when ordering the array
+     * @param string $sort    Sort by ascending (asc) or descending (desc) order
+     * 
+     * @return void         
+     */
+    function sort($orderby = "", $sort = "desc")
+    {
+        if (count($this->comments) === 0)
+            return;
+
+        // Find where the comments has this field
+        // This is useful to order using a field which is not present in every comment (like the ts field, which is missing in the stars-only vote type)
+        $comment = null;
+        for ($i=0; $i < count($this->comments) && $comment == null; $i++) { 
+            if (isset($this->comments[$i][$orderby]))
+                $comment = $this->comments[$i];
+        }
+        if ($comment === null)
+            return;
+        
+        // Order the array
+        $symbol = (strtolower($sort) == "desc" ? '<' : '>');
+        $compare = 'if (!isset($a["' . $orderby . '"]) || !isset($b["' . $orderby . '"])) return 0;';
+        $compare .= 'if($a["' . $orderby . '"] == $b["' . $orderby . '"]) return 0; ';
+
+        // The orderable field is a timestamp
+        if (preg_match("/[0-9]{4}-[0-9]{2}-[0-9]{2}\s[0-9]{2}:[0-9]{2}:[0-9]{2}/", $comment[$orderby]))
+            $compare .= 'if (strtotime($a["' . $orderby . '"]) ' . $symbol . ' strtotime($b["' . $orderby . '"])) return -1; return 1;';
+
+        // The orderable field is a number
+        else if (is_numeric($comment[$orderby]))
+            $compare .= 'if ($a["' . $orderby . '"] ' . $symbol . ' $b["' . $orderby . '"]) return -1; return 1;';
+
+        // The orderable field is a string
+        else if (is_string($comment[$orderby]))
+            $compare .= 'return strcmp($a["' . $orderby . '"], $b["' . $orderby . '"]);';
+
+        // Sort and return
+        usort($this->comments, create_function('$a, $b', $compare));
+    }
+
+    /**
+     * Get all the comments loaded in this class
+     * 
+     * @param {string}  $orderby      Field to compare when ordering the array
+     * @param {string}  $sort         Sort by ascending (asc) or descending (desc) order
+     * @param {boolean} $approvedOnly Show only approved comments
+     * 
+     * @return {array} An array of associative arrays containing the comments data
+     */
+    function getAll($orderby = "", $sort = "desc", $approvedOnly = true)
+    {
+        if ($orderby == "" || count($this->comments) === 0)
+            return $this->comments;
+        
+        $this->sort($orderby, $sort);
+        
+        if (!$approvedOnly)
+            return $this->comments;
+
+        $comments = array();
+        foreach ($this->comments as $comment) {
+            if (isset($comment['approved']) && $comment['approved'] == "1") {
+                $comments[] = $comment;
+            }
+        }
+        return $comments;
+    }
+
+    /**
+     * Get the comments in the specified page when there is the specified number of comments in every page.
+     * This is useful for pagination.
+     * 
+     * @param  {integer} $pageNumber      The number of page to show (0 based)
+     * @param  {integer} $commentsPerPage Number of comments shown in each page
+     * @param  {string}  $orderby         Field to compare when ordering the array
+     * @param  {string}  $sort            Sort by ascending (asc) or descending (desc) order
+     * @param  {boolean} $approvedOnly    Show only approved comments
+     * 
+     * @return {array} The list of comments in the page
+     */
+    function getPage($pageNumber, $commentsPerPage, $orderby = "", $sort = "desc", $approvedOnly = true) {
+        $all = $this->getAll($orderby, $sort, $approvedOnly);
+        // If the page number is wrong, return an empty array
+        if ($pageNumber < 0 || $pageNumber > $this->getPagesNumber($commentsPerPage))
+            return array();
+        return array_slice($all, $pageNumber * $commentsPerPage, $commentsPerPage, false);
+    }
+
+    /**
+     * Get the comment number n
+     * 
+     * @param {integer} $n The comment's number
+     * 
+     * @return {array} The comment's data or an empty array if the comment is not found
+     */
+    function get($n)
+    {
+        if (isset($this->comments[$n]))
+            return $this->comments[$n];
+        return array();
+    }
+
+    /**
+     * Get the pages number given the number of comments per page
+     * 
+     * @param  {integer} $commentsPerPage Number of comments in every page
+     * @param  {boolean} $approvedOnly    Show only approved comments
+     * 
+     * @return {integer} The number of pages
+     */
+    function getPagesNumber($commentsPerPage, $approvedOnly = true) {
+        if (!is_array($this->comments) || !count($this->comments))
+            return 0;
+        if (!$approvedOnly) {
+            $count = count($this->comments);
+        } else {
+            $count = 0;
+            foreach ($this->comments as $comment) {
+                if ($comment['approved'] == "1") {
+                    $count++;
+                }
+            }
+        }
+        return ceil($count / $commentsPerPage);
+    }
+
+    /**
+     * Edit the comment number $n with the data contained in the parameter $comment
+     * 
+     * @param {integer} $n       Comment number
+     * @param {array}   $comment Comment data
+     * 
+     * @return {boolean} True if the comment was correctly edited. False instead.
+     */
+    function edit($n, $comment)
+    {
+        if (isset($this->comments[$n])) {
+            $this->comments[$n] = $comment;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Delete the comment at $n
+     * 
+     * @param {integer} $n The index of the comment
+     *
+     * @return {Void}
+     */
+    function delete($n)
+    {
+        // Delete an element from the array and reset the indexes
+        if (isset($this->comments[$n])) {
+            $comments = $this->comments;
+            $this->comments = array();
+            for ($i = 0; $i < count($comments); $i++)
+                if ($i != $n)
+                    $this->comments[] = $comments[$i];
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Clean the data from XSS
+     * 
+     * @param string  $str         The string to parse
+     * @param boolean $allow_links true to allow links
+     * 
+     * @return string
+     */
+    function filterCode($str, $allow_links = false)
+    {
+        global $imSettings;
+
+        if (gettype($str) != 'string')
+            return "";
+
+        // Remove javascript
+        while (($start = imstripos($str, "<script")) !== false) {
+            $end = imstripos($str, "</script>") + strlen("</script>");
+            $str = substr($str, 0, $start) . substr($str, $end);
+        }
+
+        // Remove PHP Code
+        while (($start = imstripos($str, "<?")) !== false) {
+            $end = imstripos($str, "?>") + strlen("?>");
+            $str = substr($str, 0, $start) . substr($str, $end);
+        }
+
+        // Remove ASP code
+        while (($start = imstripos($str, "<%")) !== false) {
+            $end = imstripos($str, "%>") + strlen("<%");
+            $str = substr($str, 0, $start) . substr($str, $end);
+        }
+
+        // Allow only few tags
+        $str = strip_tags($str, '<b><i><u>' . ($allow_links ? '<a>' : ''));
+        
+        // Remove XML injection code
+        while (($start = imstripos($str, "<![CDATA[")) !== false) {    
+            // Remove the entire XML block when possible
+            if (imstripos($str, "]]>") !== false) {
+                $end = imstripos($str, "]]>") + strlen("]]>");
+                $str = substr($str, 0, $start) . substr($str, $end);
+            } else {        
+                $str = str_replace("<![CDATA[", "", str_replace("<![cdata[", "", $str));
+            }
+        }
+        while (($start = imstripos($str, "]]>")) !== false) {
+            $str = str_replace("]]>", "", $str);
+        }
+
+        // Remove all the onmouseover, onclick etc attributes
+        while (($res = preg_replace("/(<[\\s\\S]+) on.*\\=(['\"\"])[\\s\\S]+\\2/i", "\\1", $str)) != $str) {
+            // Exit in case of error
+            if ($res == null)
+                break;
+            $str = $res;
+        }
+
+        $matches = array();
+        preg_match_all('~<a.*>~isU', $str, $matches);
+        for ($i = 0; $i < count($matches[0]); $i++) {
+            if (imstripos($matches[0][$i], 'nofollow') === false && imstripos($matches[0][$i], $imSettings['general']['url']) === false) {
+                $result = trim($matches[0][$i], ">") . ' rel="nofollow">';
+                $str = str_replace(strtolower($matches[0][$i]), strtolower($result), $str);
+            }
+        }
+
+        return $str;
+    }
+
+    /**
+     * Provide the last error
+     * 
+     * @return int
+     */
+    function lastError()
+    {
+        return $this->error;
+    }
 }
+
+
+
+
+
+
 
 
 
@@ -332,18 +1244,45 @@ class ImGuestbook
  */
 class imPrivateArea
 {
-    public $admin_email;
 
-    private $session_type;
-    private $session_uname;
-    private $session_uid;
-    private $session_gids;
-    private $session_page;
-    private $cookie_name;
-    private $salt;
+    static $instance = false;
 
+    /**
+     * Get the instance of the private area
+     *
+     * @static
+     * 
+     * @return {imPrivateArea} The instance of a private area
+     */
+    static function getInstance() {
+        if (!self::$instance) {
+            self::$instance = new imPrivateArea();
+        }
+        return self::$instance;
+    }
+
+    var $session_type;
+    var $session_uname;
+    var $session_uid;
+    var $session_gids;
+    var $session_page;
+    var $cookie_name;
+    var $salt;
+    var $admin_email;
+
+    // PHP 5
     function __construct()
     {
+        $this->setup();
+    }
+
+    // PHP 4
+    function imPrivateArea()
+    {
+        $this->setup();
+    }
+
+    function setup() {
         global $imSettings;
 
         $this->session_type      = "im_access_utype";
@@ -354,6 +1293,53 @@ class imPrivateArea
         $this->session_gids      = "im_access_gids";
         $this->cookie_name       = "im_access_cookie_uid";
         $this->salt              = $imSettings['general']['salt'];
+    }
+
+    /**
+     * Encode the string
+     *
+     * @ignore
+     * 
+     * @param  string $string The string to encode
+     * @param  $key The encryption key
+     * 
+     * @return string    The encoded string
+     */
+    function _encode($s, $k)
+    {
+        $r = array();
+        for($i = 0; $i < strlen($s); $i++)
+            $r[] = ord($s[$i]) + ord($k[$i % strlen($k)]);
+
+        // Try to encode it using base64
+        if (function_exists("base64_encode") && function_exists("base64_decode"))
+            return base64_encode(implode('.', $r));
+
+        return implode('.', $r);
+    }
+
+    /**
+     * Decode the string
+     *
+     * @ignore
+     * 
+     * @param  string $s The string to decode
+     * @param  string $k The encryption key
+     * 
+     * @return string    The decoded string
+     */
+    function _decode($s, $k)
+    {
+
+        // Try to decode it using base64
+        if (function_exists("base64_encode") && function_exists("base64_decode"))
+            $s = base64_decode($s);
+
+        $s = explode(".", $s);
+        $r = array();
+        for($i = 0; $i < count($s); $i++)
+            $r[$i] = chr($s[$i] - ord($k[$i % strlen($k)]));
+        return implode('', $r);
     }
 
     /**
@@ -368,7 +1354,7 @@ class imPrivateArea
      *                  -1 if there's a db error,
      *                  0 if the process exits correctly
      */
-    public function login($uname, $pwd)
+    function login($uname, $pwd)
     {
         global $imSettings;
 
@@ -390,11 +1376,36 @@ class imPrivateArea
     }
 
     /**
+     * Set the session after the login
+     *
+     * @ignore
+     *
+     * @param {string} $type "0" or "1"
+     * @param {string} $uid
+     * @param {array}  $gids
+     * @param {string} $uname   
+     * @param {string} $realname
+     *
+     * @return {Void}
+     */
+    function _setSession($type, $uid, $gids, $uname, $realname)
+    {
+        @session_regenerate_id();
+        $_SESSION[$this->session_type]      = $this->_encode($type, $this->salt);
+        $_SESSION[$this->session_uid]       = $this->_encode($uid, $this->salt);
+        $_SESSION[$this->session_uname]     = $this->_encode($uname, $this->salt);
+        $_SESSION[$this->session_real_name] = $this->_encode($realname, $this->salt);
+        $_SESSION[$this->session_gids]      = $gids;
+        $_SESSION['HTTP_USER_AGENT']        = md5($_SERVER['HTTP_USER_AGENT'] . $this->salt);
+        @setcookie($this->cookie_name, $this->_encode($uid, $this->salt), 0, "/"); // Expires when the browser is closed
+    }
+
+    /**
      * Logout a user
      *
      * @return {Void}
      */
-    public function logout()
+    function logout()
     {
         $_SESSION[$this->session_type]  = "";
         $_SESSION[$this->session_uname] = "";
@@ -411,7 +1422,7 @@ class imPrivateArea
      *
      * @return {Void}
      */
-    public function savePage()
+    function savePage()
     {
         global $imSettings;
         $url = $_SERVER['REQUEST_URI'];
@@ -425,7 +1436,7 @@ class imPrivateArea
      *
      * @return {mixed} The name of the page or false if no referer is available.
      */
-    public function getSavedPage()
+    function getSavedPage()
     {
         global $imSettings;
         if (isset($_SESSION[$this->session_page]) && $_SESSION[$this->session_page] != "")
@@ -438,7 +1449,7 @@ class imPrivateArea
      * @deprecated
      * @return {mixed}
      */
-    public function who_is_logged() {
+    function who_is_logged() {
         return $this->whoIsLogged();
     }
 
@@ -447,7 +1458,7 @@ class imPrivateArea
      *
      * @return {mixed} An array containing the data of the current logged user or false if no user is logged.
      */
-    public function whoIsLogged()
+    function whoIsLogged()
     {
         global $imSettings;
         if (isset($_SESSION[$this->session_uname]) && $_SESSION[$this->session_uname] != "" && isset($_SESSION[$this->session_uname])) {
@@ -474,7 +1485,7 @@ class imPrivateArea
      *                 -4 if the user is still not validated
      *                 -8 if the user cannot access the page
      */
-    public function checkAccess($page)
+    function checkAccess($page)
     {
         global $imSettings;
 
@@ -499,7 +1510,7 @@ class imPrivateArea
      *
      * @return {mixed} The filename of the user's landing page or false if the user is not logged.
      */
-    public function getLandingPage()
+    function getLandingPage()
     {
         global $imSettings;
         if (!isset($_SESSION[$this->session_type]) || !isset($_SESSION[$this->session_uname]) || $_SESSION[$this->session_uname] === '' || !isset($_SESSION[$this->session_uid]) || $_SESSION[$this->session_uid] === '')
@@ -516,7 +1527,7 @@ class imPrivateArea
      * 
      * @return {string} The text message related to the provided error code
      */
-    public function messageFromStatusCode($code)
+    function messageFromStatusCode($code)
     {
         switch ($code) {
 
@@ -548,7 +1559,7 @@ class imPrivateArea
      * 
      * @return {void}
      */
-    public function sessionSafeRedirect($to)
+    function sessionSafeRedirect($to)
     {
         exit('<!DOCTYPE html><html lang="it" dir="ltr"><head><title>Loading...</title><meta http-equiv="refresh" content="1; url=' . $to . '"></head><body><p style="text-align: center;">Loading...</p></body></html>');
     }
@@ -559,9 +1570,9 @@ class imPrivateArea
      * @param  {string} $id The username
      * 
      * @return {mixed} The user's data (As associative array) or null if the user is not found.
-     * The associative array contains the following keys: id, ts, ip, username, password, realname, email, key, validated, groups, hash
+     * The associative array contains the following keys: id, ts, ip, username, password, realname, email, key, validated, groups
      */
-    public function getUserByUsername($username)
+    function getUserByUsername($username)
     {
         global $imSettings;
         
@@ -578,88 +1589,10 @@ class imPrivateArea
                 "email"     => $user['email'],
                 "key"       => "",
                 "validated" => true,
-                "groups"    => $user['groups'],
-                "hash"      => $this->_getUserHash($username, $user['password'])
+                "groups"    => $user['groups']
             );
         }
         return null;
-    }
-
-    
-    /**
-     * Encode the string
-     *
-     * @ignore
-     * 
-     * @param  string $string The string to encode
-     * @param  $key The encryption key
-     * 
-     * @return string    The encoded string
-     */
-    private function _encode($s, $k)
-    {
-        $r = array();
-        for($i = 0; $i < strlen($s); $i++) {
-            $r[] = ord($s[$i]) + ord($k[$i % strlen($k)]);
-        }
-
-        // Try to encode it using base64
-        if (function_exists("base64_encode") && function_exists("base64_decode")) {
-            return base64_encode(implode('.', $r));
-        }
-
-        return implode('.', $r);
-    }
-
-    /**
-     * Decode the string
-     *
-     * @ignore
-     * 
-     * @param  string $s The string to decode
-     * @param  string $k The encryption key
-     * 
-     * @return string    The decoded string
-     */
-    private function _decode($s, $k)
-    {
-
-        // Try to decode it using base64
-        if (function_exists("base64_encode") && function_exists("base64_decode")) {
-            $s = base64_decode($s);
-        }
-
-        $s = explode(".", $s);
-        $r = array();
-        for($i = 0; $i < count($s); $i++) {
-            $r[$i] = chr($s[$i] - ord($k[$i % strlen($k)]));
-        }
-        return implode('', $r);
-    }
-
-    /**
-     * Set the session after the login
-     *
-     * @ignore
-     *
-     * @param {string} $type "0" or "1"
-     * @param {string} $uid
-     * @param {array}  $gids
-     * @param {string} $uname   
-     * @param {string} $realname
-     *
-     * @return {Void}
-     */
-    private function _setSession($type, $uid, $gids, $uname, $realname)
-    {
-        @session_regenerate_id();
-        $_SESSION[$this->session_type]      = $this->_encode($type, $this->salt);
-        $_SESSION[$this->session_uid]       = $this->_encode($uid, $this->salt);
-        $_SESSION[$this->session_uname]     = $this->_encode($uname, $this->salt);
-        $_SESSION[$this->session_real_name] = $this->_encode($realname, $this->salt);
-        $_SESSION[$this->session_gids]      = $gids;
-        $_SESSION['HTTP_USER_AGENT']        = md5($_SERVER['HTTP_USER_AGENT'] . $this->salt);
-        @setcookie($this->cookie_name, $this->_encode($uid, $this->salt), 0, "/"); // Expires when the browser is closed
     }
 
 }
@@ -675,6 +1608,12 @@ class imSearch {
     var $results_per_page;
 
     function __construct()
+    {
+        $this->setScope();
+        $this->results_per_page = 10;
+    }
+
+    function imSearch()
     {
         $this->setScope();
         $this->results_per_page = 10;
@@ -1260,7 +2199,6 @@ class imSearch {
 
         if ($found_count) {
             arsort($found_weight);
-            $i = 0;
             foreach ($found_videos as $id => $video) {
                 $i++;
                 if (($i > $this->page*$this->results_per_page) && ($i <= ($this->page+1)*$this->results_per_page)) {
@@ -1305,8 +2243,8 @@ class imSearch {
         $emptyResultsHtml = "<div style=\"margin-top: 15px; text-align: center; font-weight: bold;\">" . l10n('search_empty') . "</div>\n";
 
         $html .= "<div class=\"imPageSearchField\"><form method=\"get\" action=\"imsearch.php\">";
-        $html .= "<input style=\"width: 200px; padding: 3px; vertical-align: middle;\" class=\"search_field\" value=\"" . htmlspecialchars($keys, ENT_COMPAT, 'UTF-8') . "\" type=\"text\" name=\"search\" />";
-        $html .= "<input style=\"margin-left: 6px; padding: 3px 3px; vertical-align: middle; cursor: pointer;\" type=\"submit\" value=\"" . l10n('search_search') . "\">";
+        $html .= "<input style=\"width: 200px; font: 8pt Tahoma; color: rgb(0, 0, 0); background-color: rgb(255, 255, 255); padding: 3px; border: 1px solid rgb(0, 0, 0); vertical-align: middle;\" class=\"search_field\" value=\"" . htmlspecialchars($keys, ENT_COMPAT, 'UTF-8') . "\" type=\"text\" name=\"search\" />";
+        $html .= "<input style=\"height: 21px; font: 8pt Tahoma; color: rgb(0, 0, 0); background-color: rgb(211, 211, 211); margin-left: 6px; padding: 3px 3px; border: 1px solid rgb(0, 0, 0); vertical-align: middle; cursor: pointer;\" type=\"submit\" value=\"" . l10n('search_search') . "\">";
         $html .= "</form></div>\n";
 
         // Exit if no search query was given
@@ -1412,8 +2350,13 @@ class imSearch {
         $sidebar .= "</ul>\n";
 
         $html .= "<div id=\"imSearchResults\">\n";
-        $html .= "\t<div id=\"imSearchSideBar\">" . $sidebar . "</div>\n";
-        $html .= "\t<div id=\"imSearchContent\">" . $content . "</div>\n";
+        if ($imSettings['search']['general']['menu_position'] == "left") {
+            $html .= "\t<div id=\"imSearchSideBar\" style=\"float: left;\">" . $sidebar . "</div>\n";
+            $html .= "\t<div id=\"imSearchContent\" style=\"float: right;\">" . $content . "</div>\n";
+        } else {
+            $html .= "\t<div id=\"imSearchContent\" style=\"float: left;\">" . $content . "</div>\n";
+            $html .= "\t<div id=\"imSearchSideBar\" style=\"float: right;\">" . $sidebar . "</div>\n";
+        }
         $html .= "</div>\n";
 
         // Pagination
@@ -1649,10 +2592,10 @@ class ImSendEmail
             $data = "";
             $file = pathCombine(array($this->pathToRoot, $this->getLogPath()));
             if (file_exists($file)) {
-                $data = @file_get_contents($file);
+                $data = file_get_contents($file);
             }
             $data = "[" . date("Y-m-d H:i:s") . "] " . $message . PHP_EOL . $data;
-            @file_put_contents($file, $data);
+            file_put_contents($file, $data);
         }
     }
 }
@@ -1663,58 +2606,726 @@ class ImSendEmail
  */
 class imTest {
 
-    /**
-     * Test the current WSX5 configuration
-     * 
-     * @return Array An array containing the test results as array("name" => string, "success" => bool, "message" => string)
+    /*
+     * Session check
      */
-    static public function testWsx5Configuration()
+    function session_test()
     {
+        
+        if (!isset($_SESSION))
+            return false;
+        $_SESSION['imAdmin_test'] = "test_message";
+        return ($_SESSION['imAdmin_test'] == "test_message");
+    }
+
+    /*
+     * Writable files check
+     */
+    function writable_folder_test($dir)
+    {
+        if (!file_exists($dir) && $dir != "" && $dir != "./.")
+            @mkdir($dir, 0777, true);
+
+        $fp = @fopen(pathCombine(array($dir, "imAdmin_test_file")), "w");
+        if (!$fp)
+            return false;
+        if (@fwrite($fp, "test") === false)
+            return false;
+        @fclose($fp);
+        if (!@file_exists(pathCombine(array($dir, "imAdmin_test_file"))))
+            return false;
+        @unlink(pathCombine(array($dir, "imAdmin_test_file")));
+        return true;
+    }
+
+    /*
+     * PHP Version check
+     */
+    function php_version_test()
+    {   
+        if (!function_exists("version_compare") || version_compare(PHP_VERSION, '4.0.0') < 0)
+            return false;
+        return true;
+    }
+
+    /*
+     * MySQL Connection check
+     */
+    function mysql_test($host, $user, $pwd, $name)
+    {
+        $db = new ImDb($host, $user, $pwd, $name);
+        if (!$db->testConnection())
+            return false;
+        $db->closeConnection();
+        return true;
+    }
+
+    /*
+     * Do the test
+     */
+    function doTest($expected, $value, $title, $message)
+    {
+        if ($expected == $value)
+            echo "<div class=\"imTest pass\">" . $title . "<span>PASS</span></div>";
+        else
+            echo "<div class=\"imTest fail\">" . $title . "<span>FAIL</span><p>" . $message . "</p></div>";
+    }
+}
+
+
+
+/**
+ * @summary
+ * Manage the user messages in a topic or discussion.
+ * To use it, you must include __x5engine.php__ in your code.
+ *
+ * @description Create a new instance of ImTopic class
+ *
+ * @class
+ * @constructor
+ * 
+ * @param {string} $id       The topic id
+ * @param {string} $basepath The base path
+ * @param {string} $postUrl  The URL to post to
+ */
+class ImTopic
+{
+
+    var $id;
+    var $comments          = null;
+    var $table             = "";
+    var $folder            = "";
+    var $host              = "";
+    var $user              = "";
+    var $pwd               = "";
+    var $database          = "";
+    var $ratingImage       = "";
+    var $storageType       = "xml";
+    var $basepath          = "";
+    var $posturl           = "";
+    var $title             = "";
+    var $comPerPage        = 10;
+    var $paginationNumbers = 10;
+
+    function __construct($id, $basepath = "", $postUrl = "")
+    {
+        $this->setUp($id, $basepath, $postUrl);
+    }
+
+    /**
+     * Create a new instance of ImTopic class
+     *
+     * @ignore
+     * 
+     * @param {string} $id       The topic id
+     * @param {string} $basepath The base path
+     * @param {string} $postUrl  The URL to post to
+     */
+    function ImTopic($id, $basepath = "", $postUrl = "")
+    {
+        $this->setUp($id, $basepath, $postUrl);
+    }
+
+    /**
+     * Do the constructor actions
+     *
+     * @ignore
+     * 
+     * @param string  $id              The topic is
+     * @param string  $basepath        The basepath of the page which loads the topic
+     * @param string  $postUrl         The URL to post to
+     */
+    function setUp($id, $basepath = "", $postUrl = "")
+    {
+        $this->id = $id;
+        if (strlen($postUrl)) {
+            $this->posturl = trim($postUrl, "?&");
+            $this->posturl .=(strpos($this->posturl, "?") === false ? "?" : "&");
+        } else {
+            $this->posturl = basename($_SERVER['PHP_SELF']) . "?";
+        }
+        $this->basepath = $this->prepFolder($basepath);
+        // Create the comments array
+        $this->comments = new ImComment();
+    }
+
+    /**
+     * Set the number of comments to show in each page
+     * 
+     * @param {integer} $n
+     *
+     * @return {Void}
+     */
+    function setCommentsPerPage($n) {
+        $this->comPerPage = $n;
+    }
+
+    /**
+     * Set the path to wich the data is posted to when a message is submitted
+     * 
+     * @param {string} $posturl
+     *
+     * @return {Void}
+     */
+    function setPostUrl($posturl)
+    {
+        $this->posturl = $posturl . (strpos($posturl, "?") === 0 ? "?" : "&");
+    }
+
+    /**
+     * Set the title of this topic
+     * 
+     * @param {string} $title
+     *
+     * @return {Void}
+     */
+    function setTitle($title)
+    {
+        $this->title = $title;
+    }
+
+    /**
+     * Return the encrypted filename of a string
+     *
+     * @ignore
+     * 
+     * @param  string $str
+     * 
+     * @return string
+     */
+    function encFileName($str)
+    {
+        return substr(md5($str), 0, 8) . substr($str, -4);
+    }
+
+    /**
+     * Load the data from the xml file contained in the specified folder.
+     * The filename of this topic is automatically calculated basing on the topic's id to provide a major lever of security.
+     * 
+     * @param {string} $folder The file's folder
+     *
+     * @return {Void}
+     */
+    function loadXML($folder = "")
+    {
+        if ($this->comments == null)
+            return;
+
+        $this->folder = $this->prepFolder($folder);
+        $encName = $this->encFileName($this->id);
+        // Check if the encrypted filename exists
+        if (file_exists($this->basepath . $this->folder . $encName))
+            $this->comments->loadFromXML($this->basepath . $this->folder . $encName);
+        // If the encrypted filename doesn't exist, try the normal filename
+        else
+            $this->comments->loadFromXML($this->basepath . $this->folder . $this->id);
+        $this->storageType = "xml";
+    }
+
+    /**
+     * Save the data to an xml file in the provided folder.
+     * The filename of this topic is automatically calculated basing on the topic's id to provide a major lever of security.
+     * 
+     * @param {string} $folder The folder where is saved the file
+     * 
+     * @return {boolean} True if the file is saved correctly
+     */
+    function saveXML($folder = "")
+    {
+        if ($this->comments == null)
+            return;
+
+        $encName = $this->encFileName($this->id);
+        $folder = $folder != "" ? $this->prepFolder($folder) : $this->folder;
+        if ($this->comments->saveToXML($this->basepath . $folder . $encName)) {
+            // If the comments can be saved, check if the non-encrypted file exists. If so, delete it.
+            if (file_exists($this->basepath . $this->folder . $this->id))
+                unlink($this->basepath . $this->folder . $this->id);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Setup the folder
+     *
+     * @ignore
+     * 
+     * @param string $folder The folder path to prepare
+     * 
+     * @return string
+     */
+    function prepFolder($folder)
+    {
+        if (strlen(trim($folder)) == 0)
+            return "./";
+
+        if (substr($folder, 0, -1) != "/")
+            $folder .= "/";
+
+        return $folder;
+    }
+
+
+    /**
+     * Checks the $_POST array for new messages
+     *
+     * @ignore
+     * 
+     * @param boolean $moderate    TRUE to show only approved comments
+     * @param string  $to          The email to notify the new comment
+     * @param string  $type        The topic type (guestbook|blog)
+     * @param string  $moderateurl The url where the user can moderate the comments
+     * 
+     * @return boolean
+     */
+    function checkNewMessages($moderate = true, $to = "", $type = "guestbook", $moderateurl = "")
+    {
+        global $ImMailer;
         global $imSettings;
 
-        $testedFolders = array();
-        $test = new imTest();
-        $results = array();
+        /*
+        |-------------------------------------------
+        |    Check for new messages
+        |-------------------------------------------
+         */
 
-        $results[] = array(
-            "name"    => l10n('admin_test_version') . ": " . PHP_VERSION,
-            "message" => l10n('admin_test_version_suggestion'),
-            "success" => $test->php_version_test()
+        if (!isset($_POST['x5topicid']) || $_POST['x5topicid'] != $this->id)
+            return false;
+        if (!checkJsAndSpam())
+            return false;
+
+        $comment = array(
+            "email"     => $_POST['email'],
+            "name"      => $_POST['name'],
+            "url"       => $_POST['url'],
+            "body"      => $_POST['body'],
+            "ip"        => $_SERVER['REMOTE_ADDR'],
+            "timestamp" => date("Y-m-d H:i:s"),
+            "abuse"     => "0",
+            "approved"  => $moderate ? "0" : "1"
         );
+        if (isset($_POST['rating']))
+            $comment['rating'] = $_POST['rating'];
+        $this->comments->add($comment);
+        $saved = $this->saveXML();
+        if (!$saved) {
+            echo "<script type=\"text/javascript\">window.top.location.href='" . $this->posturl . $this->id . "error';</script>";
+            return false;
+        }
+        // Send the notification email
+        if ($to != "") {
+            // ---------------------------------------------------
+            //  WSXELE-898: Find the correct email sender address
+            $from = "";
+            if ($imSettings['general']['use_common_email_sender_address']) {
+                $from = $imSettings['general']['common_email_sender_addres'];
+            } else if (strlen($comment['email'])) {
+                $from = $comment['email'];
+            } else {
+                $from = $to;
+            }
+            // ---------------------------------------------------
 
-        $results[] = array(
-            "name"    => l10n('admin_test_session'),
-            "message" => l10n('admin_test_session_suggestion'),
-            "success" => $test->session_test()
-        );
-
-        @chdir("../.");
-
-        // Generic public folder
-        if (isset($imSettings['general']['public_folder'])) {
-            $testedFolders[] = $imSettings['general']['public_folder'];
-            $results[] = array(
-                "name"    => l10n('admin_test_folder') . ($imSettings['general']['public_folder'] != "" ? " (" . $imSettings['general']['public_folder'] . ")": " (site root folder)"),
-                "message" => l10n("admin_test_folder_suggestion"),
-                "success" => $test->writable_folder_test($imSettings['general']['public_folder'])
-            );
+            if ($type == "guestbook")
+                $html = str_replace(array("Blog", "blog"), array("Guestbook", "guestbook"), l10n('blog_new_comment_text')) . " \"" . $this->title . "\":<br /><br />\n\n";
+            else
+                $html = l10n('blog_new_comment_text') . ":<br /><br />\n\n";
+            $html .= "<b>" . l10n('blog_name') . "</b> " . stripslashes($_POST['name']) . "<br />\n";
+            $html .= "<b>" . l10n('blog_email') . "</b> " . $_POST['email'] . "<br />\n";
+            $html .= "<b>" . l10n('blog_website') . "</b> " . $_POST['url'] . "<br />\n";
+            if (isset($_POST['rating']))
+                $html .= "<b>" . l10n('blog_rating', "Vote:") . "</b> " . $_POST['rating'] . "/5<br />\n";
+            $html .= "<b>" . l10n('blog_message') . "</b> " . stripslashes($_POST['body']) . "<br /><br />\n\n";
+            // Set the proper link
+            if ($moderateurl != "") {
+                $html .= ($moderate ? l10n('blog_unapprove_link') : l10n('blog_approve_link')) . ":<br />\n";
+                $html .= "<a href=\"" . $moderateurl . "\">" . $moderateurl . "</a>";
+            }
+            if ($type == "guestbook")
+                $subject = str_replace(array("Blog", "blog"), array("Guestbook", "guestbook"), l10n('blog_new_comment_object'));
+            else
+                $subject = l10n('blog_new_comment_object');
+            $ImMailer->send($from, $to, $subject, strip_tags($html), $html);
         }
 
-        // Blog public folder
-        if (isset($imSettings['blog']) && $imSettings['blog']['sendmode'] == 'file' && !in_array($imSettings['blog']['folder'], $testedFolders)) {
-            $testedFolders[] = $imSettings['blog']['folder'];
-            $results[] = array(
-                "name"    => l10n('admin_test_folder') . ($imSettings['blog']['folder'] != "" ? " (" . $imSettings['blog']['folder'] . ")": " (site root folder)"),
-                "message" => l10n("admin_test_folder_suggestion"),
-                "success" => $test->writable_folder_test($imSettings['blog']['folder'])
-            );
+        // Redirect
+        echo "<script type=\"text/javascript\">window.top.location.href='" . $this->posturl . ($moderate ? $this->id . "success" : "") . "';</script>";
+        return true;
+    }
+
+    /**
+     * Check for new abuses
+     *
+     * @ignore
+     * 
+     * @return void
+     */
+    function checkNewAbuses()
+    {
+        if (isset($_GET['x5topicid']) && $_GET['x5topicid'] == $this->id) {
+            if (isset($_GET['abuse'])) {
+                $n = intval($_GET['abuse']);
+                $c = $this->comments->get($n);
+                $c['abuse'] = "1";
+                $this->comments->edit($n, $c);
+                $this->saveXML();
+                echo "<script type=\"text/javascript\">window.top.location.href='" . $this->posturl . "';</script>";
+            }
         }
+    }
+
+    /**
+     * Show the comments form
+     * 
+     * @param {boolean} $rating      true to show the rating
+     * @param {boolean} $captcha     true to enable captcha
+     * @param {boolean} $moderate    true to enable the moderation
+     * @param {string}  $email       the email address to notificate
+     * @param {string}  $type        guestbook or blog
+     * @param {string}  $moderateurl The url at wich is possible to moderate the new comments
+     * 
+     * @return void
+     */
+    function showForm($rating = true, $captcha = true, $moderate = true, $email = "", $type = "guestbook", $moderateurl = "")
+    {
+        global $imSettings;
+        $id = $this->id . "-topic-form";
+
+        $this->checkNewMessages($moderate, $email, $type, $moderateurl);
+        $this->checkNewAbuses();
+
+        /*
+        |-------------------------------------------
+        |    Show the form
+        |-------------------------------------------
+         */
         
+        if (isset($_GET[$this->id . 'success'])) {
+            echo "<div class=\"alert alert-green\">" . l10n('blog_send_confirmation') . "</div>";
+        } else if (isset($_GET[$this->id . 'error'])) {
+            echo "<div class=\"alert alert-red\">" . l10n('blog_send_error') . "</div>";
+        }
 
+        echo "<div class=\"topic-form\">
+              <form id=\"" . $id ."\" action=\"" . $this->posturl . "\" method=\"post\" onsubmit=\"return x5engine.imForm.validate(this, {type: 'tip', showAll: true})\">
+                <input type=\"hidden\" name=\"post_id\" value=\"" . $this->id . "\"/>
+                <div class=\"topic-form-row\">
+                    <label for=\"" . $id . "-name\" style=\"float: left; width: 100px;\">" . l10n('blog_name') . "*</label> <input type=\"text\" id=\"" . $id . "-name\" name=\"name\" class=\"imfield mandatory\" />
+                </div>
+                <div class=\"topic-form-row\">
+                    <label for=\"" . $id . "-email\" style=\"float: left; width: 100px;\">" . l10n('blog_email') . "*</label> <input type=\"text\" id=\"" . $id . "-email\" name=\"email\" class=\"imfield mandatory valEmail\"/>
+                </div>
+                <div class=\"topic-form-row\">
+                    <label for=\"" . $id . "-url\" style=\"float: left; width: 100px;\">" . l10n('blog_website') . "</label> <input type=\"text\" id=\"" . $id . "-url\" name=\"url\" />
+                </div>";
+        if ($rating) {
+            echo "<div class=\"topic-form-row\">
+                <label style=\"float: left; width: 100px;vertical-align: middle;\">" . l10n('blog_rating', "Vote") . "</label>
+                <span class=\"topic-star-container-big variable-star-rating\">
+                    <span class=\"topic-star-fixer-big\" style=\"width: 0;\"></span>
+                </span>
+                </div>";
+        }
+                echo "<div class=\"topic-form-row\">
+                    <br /><label for=\"" . $id . "-body\" style=\"clear: both; width: 100px;\">" . l10n('blog_message') . "*</label><textarea id=\"" . $id . "-body\" name=\"body\" class=\"imfield mandatory\" style=\"width: 95%; height: 100px;\"></textarea>
+                </div>";
+        if ($captcha) {
+            echo "<div class=\"topic-form-row\" style=\"text-align: center\">
+                    <label for=\"" . $id . "_imCpt\" style=\"float: left;\">" . l10n('form_captcha_title') . "</label>&nbsp;<input type=\"text\" id=\"" . $id . "_imCpt\" name=\"imCpt\" maxlength=\"5\" class=\"imfield imCpt[5" . ($type == "blog" ? ", ../" : "") . "]\" size=\"5\" style=\"width: 120px; margin: 0 auto;\" />
+                </div>";
+        }
+        echo "<input type=\"hidden\" value=\"" . $this->id . "\" name=\"x5topicid\">";
+        echo "<input type=\"text\" value=\"\" name=\"prt\" class=\"prt_field\">";
+        echo "<div class=\"topic-form-row\" style=\"text-align: center\">
+                    <input type=\"submit\" value=\"" . l10n('blog_send') . "\" />
+                    <input type=\"reset\" value=\"" . l10n('form_reset') . "\" />
+                </div>
+                </form>
+                <script type=\"text/javascript\">x5engine.boot.push( function () { x5engine.imForm.initForm('#" . $id . "', false, { showAll: true }); });</script>
+            </div>\n";
+    }
 
-        @chdir("admin");
+    /**
+     * Show the topic summary
+     * 
+     * @param {boolean} $rating      TRUE to show the ratings
+     * @param {boolean} $admin       TRUE to show approved and unapproved comments
+     * @param {boolean} $hideifempty true to hide the summary if there are no comments
+     *
+     * @return {Void}
+     */
+    function showSummary($rating = true, $admin = false, $hideifempty = true)
+    {
+        $c = $this->comments->getAll();
+        $comments = array();
+        $votes = 0;
+        $votescount = 0;
+        foreach ($c as $comment) {
+            if ($comment['approved'] == "1" || $admin) {
+                if (isset($comment['body'])) {
+                    $comments[] = $comment;
+                }
+                if (isset($comment['rating'])) {
+                    $votes += $comment['rating'];
+                    $votescount++;
+                }
+            }
+        }
+        $count = count($comments);
+        $vote = $votescount > 0 ? $votes/$votescount : 0;
 
+        if ($count == 0 && $hideifempty)
+            return;
 
+        echo "<div class=\"topic-summary\">\n";
+        echo "<div>" . ($count > 0 ? $count . " " . ($count > 1 ? l10n('blog_comments') : l10n('blog_comment')) : l10n('blog_no_comment')) . "</div>";
+        if ($rating) {
+            echo "<div style=\"margin-bottom: 5px;\">" . l10n("blog_average_rating", "Average Vote") . ": " . number_format($vote, 1) . "/5</div>";
+            echo "<span class=\"topic-star-container-big\" title=\"" . number_format($vote, 1) . "/5\">
+                    <span class=\"topic-star-fixer-big\" style=\"width: " . round($vote/5 * 100) . "%;\"></span>
+            </span>\n";
+        }
+        echo "</div>\n";
+    }
+
+    /**
+     * Show the comments list
+     *
+     * @param {integer} $page            The page to show
+     * @param {integer} $commentsPerPage The number of comments to show for each page
+     * @param {boolean} $rating          True to show the ratings
+     * @param {string}  $order           desc or asc
+     * @param {boolean} $showabuse       True to show the "Abuse" button
+     * @param {boolean} $hideifempty     True to hide the summary if there are no comments
+     *
+     * @return {Void}
+     */
+    function showComments($rating = true, $order = "desc", $showabuse = true, $hideifempty = false)
+    {
+        
+        global $imSettings;
+
+        $page = @$_GET[$this->id . "page"];
+
+        $c = $this->comments->getPage($page, $this->comPerPage, "timestamp", $order, true);
+
+        if (count($c) == 0 && $hideifempty)
+            return;
+
+        // Show the pagination
+        $this->showPagination($page);
+        echo "<div class=\"topic-comments\">\n";
+        if (count($c) > 0) {
+            // Show the comments
+            $i = 0;
+            foreach ($c as $comment) {
+                if (isset($comment['body']) && $comment['approved'] == "1") {
+                    echo "<div class=\"topic-comment\">\n";
+                    echo "<div class=\"topic-comments-user\">" . (stristr($comment['url'], "http") ? "<a href=\"" . $comment['url'] . "\" target=\"_blank\" " . (strpos($comment['url'], $imSettings['general']['url']) === false ? 'rel="nofollow"' : '') . ">" . $comment['name'] . "</a>" : $comment['name']);
+                    if ($rating && isset($comment['rating']) && $comment['rating'] > 0) {
+                        echo "<span class=\"topic-star-container-small\" title=\"" . $comment['rating'] . "/5\" style=\"margin-left: 5px; vertical-align: middle;\">
+                                    <span class=\"topic-star-fixer-small\" style=\"width: " . round($comment['rating']/5 * 100) . "%;\"></span>
+                            </span>\n";
+                    }
+                    echo "</div>\n";
+                    echo "<div class=\"topic-comments-date imBreadcrumb\">" . $comment['timestamp'] . "</div>\n";
+                    echo "<div class=\"topic-comments-body\">" . $comment['body'] . "</div>\n";
+                    if ($showabuse) {
+                        echo "<div class=\"topic-comments-abuse\"><a href=\"" . $this->posturl . "x5topicid=" . $this->id . "&amp;abuse=" . $comment['id'] . "\">" . l10n('blog_abuse') . "<img src=\"" . $this->basepath . "res/exclamation.png\" alt=\"" . l10n('blog_abuse') . "\" title=\"" . l10n('blog_abuse') . "\" /></a></div>\n";
+                    }
+                    echo "</div>\n";
+                }
+                $i++;
+            }
+        } else {
+            echo "<div>" . l10n('blog_no_comment') . "</div>\n";
+        }
+        echo "</div>\n";
+        // Show the pagination
+        $this->showPagination($page);
+    }
+
+    /**
+     * Show the pagination links for this topic
+     * 
+     * @param  {int} $page Page number
+     *
+     * @return {Void}
+     */
+    function showPagination($page) {
+        $pages = $this->comments->getPagesNumber($this->comPerPage, true);
+        if ($pages > 1) {
+            echo "<div class=\"topic-pagination\">\n";
+            $interval = floor($this->paginationNumbers / 2);
+            if ($page > $interval && $pages > 2) {
+                echo "\t<a href=\"?" . updateQueryStringVar($this->id . "page", 0) . "\" class=\"imCssLink\">&lt;&lt;</a>\n";
+            }
+            for ($i = max(0, $page - $interval); $i < min($pages, $i + $interval); $i++) {
+                echo "\t<a href=\"?" . updateQueryStringVar($this->id . "page", $i) . "\" " . ($i == $page ? " class=\"imCssLink\" style=\"font-weight: bold;\"" : "") . ">" . ($i + 1) . "</a>\n";
+            }
+            if ($page < $pages - $interval && $pages > 2) {
+                echo "\t<a href=\"?" . updateQueryStringVar($this->id . "page", $pages - 1) . "\" class=\"imCssLink\">&gt;&gt;</a>\n";
+            }
+            echo "</div>\n";
+        }
+    }
+
+    /**
+     * Show the comments list in a administration section
+     *
+     * @ignore
+     * 
+     * @param boolean $rating true to show the ratings
+     * @param string  $order  desc or asc
+     * 
+     * @return void
+     */
+    function showAdminComments($rating = true, $order = "desc")
+    {
+        
+        global $imSettings;
+        $this->comments->sort("ts", $order);
+
+        if (isset($_GET['disable'])) {
+            $n = (int)$_GET['disable'];
+            $c = $this->comments->get($n);
+            if (count($c) != 0) {
+                $c['approved'] = "0";
+                $this->comments->edit($n, $c);
+                $this->saveXML();
+            }
+        }
+
+        if (isset($_GET['enable'])) {
+            $n = (int)$_GET['enable'];
+            $c = $this->comments->get($n);
+            if (count($c) != 0) {
+                $c['approved'] = "1";
+                $this->comments->edit($n, $c);
+                $this->saveXML();
+            }
+        }
+
+        if (isset($_GET['delete'])) {
+            $this->comments->delete((int)$_GET['delete']);
+            $this->storageType == "xml" ? $this->saveXML() : $this->saveDb();
+        }
+
+        if (isset($_GET['unabuse'])) {
+            $n = (int)$_GET['unabuse'];
+            $c = $this->comments->get($n);
+            if (count($c)) {
+                $c['abuse'] = "0";
+                $this->comments->edit($n, $c);
+                $this->saveXML();
+            }
+        }
+
+        if (isset($_GET['disable']) || isset($_GET['enable']) || isset($_GET['delete']) || isset($_GET['unabuse'])) {
+            echo "<script type=\"text/javascript\">window.top.location.href='" . $this->posturl . "';</script>\n";
+            exit();
+        }
+
+        echo "<div class=\"topic-comments\">\n";
+        $c = $this->comments->getAll();
+        if (count($c) > 0) {
+            // Show the comments
+            for ($i = 0; $i < count($c); $i++) {
+                $comment = $c[$i];
+                if (isset($comment['body'])) {
+                    echo "<div class=\"topic-comment " . ($comment['approved'] == "1" ? "enabled" : "disabled") . ($comment['abuse'] == "1" ? " abused" : "") . "\">\n";
+                    echo "\t<div class=\"topic-comments-user\">";
+                    // Abuse sign
+                    if ($comment['abuse'] == "1") {
+                        echo "<img src=\"" . $this->basepath . "res/exclamation.png\" alt=\"Abuse\" title=\"" . l10n('admin_comment_abuse') . "\" style=\"vertical-align: middle;\">\n";
+                    }
+                    // User name (with link to its url if available)
+                    // Prepare the url
+                    if (isset($comment['url']) && strlen($comment['url']) > 0) {
+                        if (strpos($comment['url'], "http://") !== 0 && strpos($comment['url'], "https://") !== 0) {
+                            $comment['url'] = "http://" . $comment['url'];
+                        } 
+                        echo "<a href=\"" . $comment['url'] . "\" target=\"_blank\" " . (strpos($comment['url'], $imSettings['general']['url']) === false ? 'rel="nofollow"' : '') . ">" . $comment['name'] . "</a>";
+                    } else {
+                        echo $comment['name'];
+                    }
+                    // Email
+                    if (isset($comment['email'])) {
+                        echo " (<a href=\"mailto:" . $comment['email'] . "\">" . $comment['email'] . "</a>)";
+                    }
+                    // Rating
+                    if ($rating && isset($comment['rating']) && $comment['rating'] > 0) {
+                        echo "\t<div class=\"topic-star-container-small\" title=\"" . $comment['rating'] . "/5\" style=\"display: block; vertical-align: middle; float: right;\">
+                                    <span class=\"topic-star-fixer-small\" style=\"width: " . round($comment['rating']/5 * 100) . "%;\"></span>
+                            </div>\n";
+                    }
+                    echo "\t</div>\n";
+                    echo "\t<div class=\"topic-comments-date imBreadcrumb\">" . $comment['timestamp'] . "</div>\n";
+                    echo "\t<div class=\"topic-comments-body\">" . $comment['body'] . "</div>\n";
+                    echo "\t<div class=\"topic-comments-controls\">\n";
+                    echo "\t\t<span style=\"float: left;\">IP: " . $comment['ip'] . "</span>\n";
+                    if ($comment['abuse'] == "1")
+                        echo "\t\t<a href=\"" . $this->posturl . "unabuse=" . $comment['id'] . "\">" . l10n("blog_abuse_remove", "Remove abuse") . "</a> |\n";
+                    if ($comment['approved'] == "1")
+                        echo "\t\t<a onclick=\"return confirm('" . str_replace("'", "\\'", l10n('blog_unapprove_question')) . "')\" href=\"" . $this->posturl . "disable=" . $comment['id'] . "\">" . l10n('blog_unapprove') . "</a> |\n";
+                    else
+                        echo "\t\t<a onclick=\"return confirm('" . str_replace("'", "\\'", l10n('blog_approve_question')) . "')\" href=\"" . $this->posturl . "enable=" . $comment['id'] . "\">" . l10n('blog_approve') . "</a> |\n";
+                    echo "\t\t<a onclick=\"return confirm('" . str_replace("'", "\\'", l10n('blog_delete_question')) . "')\" href=\"" . $this->posturl . "delete=" . $comment['id'] . "\">" . l10n('blog_delete') . "</a>\n";
+                    echo "</div>\n";
+                    echo "</div>\n";
+                }
+            }
+        } else {
+            echo "<div style=\"text-align: center; margin: 15px; 0\">" . l10n('blog_no_comment') . "</div>\n";
+        }
+        echo "</div>\n";        
+    }
+
+    /**
+     * Show a single rating form
+     * 
+     * @return void
+     */
+    function showRating()
+    {
+        
+        global $imSettings;
+
+        if (isset($_POST['x5topicid']) && $_POST['x5topicid'] == $this->id && !isset($_COOKIE['vtd' . $this->id]) && isset($_POST['imJsCheck']) && $_POST['imJsCheck'] == 'jsactive') {
+            $this->comments->add(
+                array(
+                    "rating" => $_POST['rating'],
+                    "approved" => "1"
+                )
+            );
+            $this->saveXML();
+        }
+
+        $c = $this->comments->getAll();
+        $count = 0;
+        $votes = 0;
+        $vote = 0;
+        if (count($c) > 0) {
+            // Check aproved comments count
+            $ca = array();
+            foreach ($c as $comment) {
+                if ($comment['approved'] == "1" && isset($comment['rating'])) {
+                    $count++;
+                    $votes += $comment['rating'];
+                }
+            }
+            $vote = ($count > 0 ? $votes/$count : 0);
+        }
+        echo "
+            <div style=\"text-align: center\">
+                <div style=\"margin-bottom: 5px;\">" . l10n("blog_rating", "Vote:") . " " . number_format($vote, 1) . "/5</div>
+                <div class=\"topic-star-container-big" . (!isset($_COOKIE['vtd' . $this->id]) ? " variable-star-rating" : "") . "\" data-url=\"" . $this->posturl . "\" data-id=\"" . $this->id . "\">
+                    <span class=\"topic-star-fixer-big\" style=\"width: " . round($vote/5 * 100) . "%;\"></span>
+                </div>
+            </div>\n";
+    }
+}
 
 
 
@@ -1730,7 +3341,19 @@ class imXML
     var $parser;
     var $inside = false;
 
+    // PHP 5
     function __construct($encoding = 'UTF-8')
+    {
+        $this->setUp($encoding);
+    }
+
+    // PHP 4
+    function imXML($encoding = 'UTF-8')
+    {
+        $this->setUp($encoding);   
+    }
+
+    function setUp($encoding = 'UTF-8')
     {
         $this->parser = xml_parser_create($encoding);
         xml_set_object($this->parser, $this); // $this was passed as reference &$this
@@ -1846,7 +3469,7 @@ function imPrintError($message, $docType = true)
  * If not, the user is redirected to the login page.
  *
  * @method imCheckAccess
- *
+ * 
  * @param {string} $page The id of the page to check
  * @param {string} $pathToRoot The path to reach the root from the current folder
  *
@@ -1854,7 +3477,7 @@ function imPrintError($message, $docType = true)
  */
 function imCheckAccess($page, $pathToRoot = "")
 {
-    $pa = Configuration::getPrivateArea();
+    $pa = imPrivateArea::getInstance();
     $stat = $pa->checkAccess($page);
     if ($stat !== 0) {
         $pa->savePage();
@@ -1868,9 +3491,9 @@ function imCheckAccess($page, $pathToRoot = "")
  * Shuffle an associative array
  *
  * @method shuffleAssoc
- *
+ * 
  * @param {array} $list The array to shuffle
- *
+ * 
  * @return {array}       The shuffled array
  */
 function shuffleAssoc($list)
@@ -1889,11 +3512,11 @@ function shuffleAssoc($list)
  * If you want to support PHP 4 code, use this function instead of stripos.
  *
  * @method imstripos
- *
+ * 
  * @param {string}  $haystack Where to search
  * @param {string}  $needle   What to replace
  * @param {integer} $offset   Start searching from here
- *
+ * 
  * @return {integer}          The position of the searched string
  */
 function imstripos($haystack, $needle , $offset = 0)
@@ -1910,10 +3533,10 @@ function imstripos($haystack, $needle , $offset = 0)
  * The string is taken from the ones specified at step 1 of WSX5
  *
  * @method l10n
- *
+ * 
  * @param {string} $id      The localization key
  * @param {string} $default The default string
- *
+ * 
  * @return {string}         The localization
  */
 function l10n($id, $default = "")
@@ -1930,9 +3553,9 @@ function l10n($id, $default = "")
  * Combine a series of paths
  *
  * @method pathCombine
- *
- * @param  {array}  $paths The array with the elements of the path
- *
+ * 
+ * @param  {array}  $paths The array with the element of the path
+ * 
  * @return {string} The path created combining the elements of the array
  */
 function pathCombine($paths = array())
@@ -1948,9 +3571,9 @@ function pathCombine($paths = array())
 
 /**
  * Try to convert a string to lowercase using multibyte encoding
- *
+ * 
  * @param  string $str
- *
+ * 
  * @return string
  */
 function imstrtolower($str)
@@ -2016,25 +3639,21 @@ if (!function_exists('json_encode')) {
 
 /**
  * Check for the valid data about spam and js
- *
- * @param  string $expectedValue The expected value for the JS check field
- *
+ * 
+ * @param  string $prt The spam post field name
+ * @param  string $js  The js post file name
+ * 
  * @return bool
  */
-function checkJsAndSpam($expectedValue = "")
+function checkJsAndSpam($prt = 'prt', $js = 'imJsCheck')
 {
     // Spam!
-    if ($_POST['prt'] != "") {
+    if ($_POST[$prt] != "") {
         return false;
     }
 
     // Javascript disabled
-    if (!isset($_POST['imJsCheck'])) {
-        echo imPrintJsError(false);
-        return false;
-    }
-
-    if (strlen($_POST['imJsCheck']) && $_POST['imJsCheck'] != $expectedValue) {
+    if (!isset($_POST[$js]) || $_POST[$js] != 'jsactive') {
         echo imPrintJsError(false);
         return false;
     }
@@ -2072,7 +3691,7 @@ function in_array_field($needle, $haystack, $all = false)
  */
 function imFilterInput($var) {
     // Remove the magic quotes
-    if (get_magic_quotes_gpc()) {
+    if (get_magic_quotes_gpc()) {        
         // String
         if (is_string($var))
             $var = stripslashes($var);
@@ -2109,7 +3728,7 @@ function getLastAvailableDate($timeArr) {
  *
  * @param  string $name  The variable to be replaced
  * @param  string $value The value to set
- *
+ * 
  * @return string        The updated query string
  */
 function updateQueryStringVar($name, $value) {
@@ -2122,9 +3741,9 @@ function updateQueryStringVar($name, $value) {
 
 /**
  * Get the email address from a string formatted like "John Doe <johndoe@email.com>"
- *
+ * 
  * @param  String $email The email string
- *
+ * 
  * @return String        The email address
  */
 function addressFromEmail($email) {
@@ -2138,9 +3757,9 @@ function addressFromEmail($email) {
 
 /**
  * Get the user name from a string formatted like "John Doe <johndoe@email.com>"
- *
+ * 
  * @param  String $email The email string
- *
+ * 
  * @return String        The user name
  */
 function nameFromEmail($email) {
@@ -2150,19 +3769,6 @@ function nameFromEmail($email) {
     }
     return $email;
 }
-
-
-$imSettings = Array();
-$l10n = Array();
-$phpError = false;
-$ImMailer = new ImSendEmail();
-
-@include_once "imemail.inc.php";        // Email class - Static
-@include_once "x5settings.php";         // Basic settings - Dynamically created by WebSite X5
-@include_once "access.inc.php";         // Private area data - Dynamically created by WebSite X5
-@include_once "l10n.php";               // Localizations - Dynamically created by WebSite X5
-@include_once "search.inc.php" ;        // Search engine data - Dynamically created by WebSite X5
-
 
 
 // End of file
